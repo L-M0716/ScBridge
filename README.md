@@ -9,7 +9,7 @@
 ScBridge accepts raw FASTQ files, 10x count matrices, or existing Seurat RDS
 objects. It provides one consistent interface for preprocessing, hierarchical
 cell-type annotation, and downstream biological analysis.
-![ScBridge workflow](ScBridge_workflow.pdf)
+![ScBridge workflow](ScBridge_workflow.png)
 ## Highlights
 
 <ul>
