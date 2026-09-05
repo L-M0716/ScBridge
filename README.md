@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="figures/scbridge_logo.png" alt="ScBridge - Bridging single-cell data to insights" width="900">
+  <img src="ScBridge_logo.png" alt="ScBridge - Bridging single-cell data to insights" width="900">
 </p>
 
 <p align="center">
