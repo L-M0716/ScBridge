@@ -22,7 +22,7 @@ cell-type annotation, and downstream biological analysis.
   <li>Snakemake schedules only the jobs required for the selected target and reuses complete, up-to-date outputs.</li>
 </ul>
 
-## At A Glance
+## Project at a Glance
 
 | Component | Implementation |
 |---|---|
