@@ -140,21 +140,22 @@ names used by the selected input mode.
 
 ## Tasks
 
-Select a target with `-t, --task`:
+Use `-t, --task` to specify the workflow target. ScBridge automatically executes
+all upstream stages required to produce the selected target.
 
-| Task | Behavior |
+| Task | Execution |
 |---|---|
-| `qc` | Stop after quality control |
-| `filtering` | Stop after filtering |
-| `normalization` | Stop after normalization |
-| `clustering` | Stop after clustering |
-| `annotation` | Stop after cell-type annotation |
-| `differential` | Run differential expression analysis |
-| `enrichment` | Run functional enrichment analysis |
-| `trajectory` | Run Monocle3 trajectory analysis |
-| `cellchat` | Run CellChat communication analysis |
-| `downstream` | Run differential, enrichment, trajectory, and CellChat modules |
-| `all` | Run from the selected input point to all available final outputs |
+| `qc` | Quality control |
+| `filtering` | Required stages through filtering |
+| `normalization` | Required stages through normalization |
+| `clustering` | Required stages through clustering |
+| `annotation` | Required stages through cell-type annotation |
+| `differential` | Required upstream stages + differential expression |
+| `enrichment` | Required upstream stages + functional enrichment |
+| `trajectory` | Required upstream stages + Monocle3 trajectory analysis |
+| `cellchat` | Required upstream stages + CellChat communication analysis |
+| `downstream` | All downstream analysis modules and their dependencies |
+| `all` | All available final outputs from the selected input point |
 
 ## Main Outputs
 
