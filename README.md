@@ -74,7 +74,7 @@ apptainer exec \
     -M <MARKER_FILE> \
     -R <RESULTS_DIR> \
     --star-index <STAR_INDEX_DIR> \
-    -t all
+    -t <TASK>
 ```
 
 If the STAR index does not exist, ScBridge can build it from the genome FASTA
@@ -93,7 +93,7 @@ apptainer exec \
     -S <METADATA_FILE> \
     -M <MARKER_FILE> \
     -R <RESULTS_DIR> \
-    -t all
+    -t <TASK>
 ```
 
 ### RDS Input
@@ -110,7 +110,7 @@ apptainer exec \
     -S <METADATA_FILE> \
     -M <MARKER_FILE> \
     -R <RESULTS_DIR> \
-    -t all
+    -t <TASK>
 ```
 
 For RDS mode, `-G` accepts `filtering`, `normalization`, `clustering`, or
