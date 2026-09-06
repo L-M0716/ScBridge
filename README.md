@@ -123,19 +123,17 @@ under `/opt/scRNA_workflow`.
 
 ## Inputs
 
-| Argument | Applies to | Required | Purpose |
-|---|---|---:|---|
-| `-I` | All | Yes | Select the input mode |
-| `-F` | FASTQ | Yes* | FASTQ directory |
-| `-D` | Matrix | Yes* | 10x matrix directory |
-| `-G` | RDS | Yes* | Input stage |
-| `-P` | RDS | Yes* | RDS file or stage directory |
-| `-C` | All | Yes | Configuration YAML |
-| `-S` | All | Yes | Sample metadata |
-| `-M` | All | Yes | Marker gene table |
-| `-R` | All | Yes | Results directory |
-
-\* Required only for the corresponding input mode.
+| Argument | Scope | Requirement | Purpose |
+|---|---|---|---|
+| `-I, --input-mode` | All modes | Required | Input mode |
+| `-F, --fastq-dir` | FASTQ | Mode-specific | FASTQ directory |
+| `-D, --matrix-dir` | Matrix | Mode-specific | 10x matrix directory |
+| `-G, --input-stage` | RDS | Mode-specific | RDS input stage |
+| `-P, --stage-path` | RDS | Mode-specific | RDS file or stage directory |
+| `-C, --config` | All modes | Required | Workflow configuration |
+| `-S, --metadata` | All modes | Required | Sample metadata |
+| `-M, --markerlist` | All modes | Required | Marker gene table |
+| `-R, --results` | All modes | Required | Output directory |
 
 Sample identifiers in the metadata must match the FASTQ, matrix, or RDS sample
 names used by the selected input mode.
