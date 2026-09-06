@@ -6,9 +6,10 @@
   <strong>A containerized Snakemake workflow for end-to-end single-cell RNA-seq analysis.</strong>
 </p>
 
-ScBridge accepts raw FASTQ files, 10x count matrices, or existing Seurat RDS
-objects. It provides one consistent interface for preprocessing, hierarchical
-cell-type annotation, and downstream biological analysis.
+ScBridge supports FASTQ, 10x matrix, and Seurat RDS inputs, combining
+hierarchical cell-type annotation with comprehensive downstream analysis.
+## Workflow Overview
+
 ![ScBridge workflow](ScBridge_workflow.png)
 ## Highlights
 
