@@ -1,0 +1,585 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%labels
+    Author zyh
+    Version 1.1
+    Description scRNA-seq Analysis Workflow Container
+    SnakemakeVersion 9.11.2
+    STARVersion 2.7.11b
+
+%help
+    This is a scRNA-seq analysis workflow container based on Snakemake.
+
+%files
+    # Build from the repository root so these source paths resolve correctly.
+    run_workflow /opt/scRNA_workflow/run_workflow
+    workflow1/src/snakefile /opt/scRNA_workflow/workflow1/src/snakefile
+    workflow1/src/workflow/rules /opt/scRNA_workflow/workflow1/src/workflow/rules
+    workflow1/src/workflow/scripts /opt/scRNA_workflow/workflow1/src/workflow/scripts
+    workflow1/src/config/config.yaml /opt/scRNA_workflow/workflow1/src/config/config.yaml
+
+    # Version-controlled environment specifications.
+    build/sctest.yaml /opt/scbridge-build/sctest.yaml
+    build/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
+
+    # Small runtime resources that may be redistributed with ScBridge.
+    workflow1/src/config/3M-february-2018_TRU.txt /opt/scbridge/resources/whitelists/3M-february-2018_TRU.txt
+    workflow1/src/config/BD_CLS1_V1.txt /opt/scbridge/resources/whitelists/BD_CLS1_V1.txt
+    workflow1/src/config/BD_CLS2_V1.txt /opt/scbridge/resources/whitelists/BD_CLS2_V1.txt
+    workflow1/src/config/BD_CLS3_V1.txt /opt/scbridge/resources/whitelists/BD_CLS3_V1.txt
+    workflow1/src/config/corrected_mouse_cell_cycle_genes.rds /opt/scbridge/resources/cell_cycle/corrected_mouse_cell_cycle_genes.rds
+    workflow1/src/config/human_cell_cycle_genes_2019.rds /opt/scbridge/resources/cell_cycle/human_cell_cycle_genes_2019.rds
+
+    # Default marker knowledge base used for hierarchical annotation. Users can
+    # override this at runtime with -M/--markerlist.
+    workflow1/src/config/UCB_markers_from_paper.tsv /opt/scbridge/resources/markers/UCB_markers_from_paper.tsv
+
+%post
+    #!/bin/bash
+    set -e
+    
+    export DEBIAN_FRONTEND=noninteractive
+    export PATH=/opt/conda/bin:$PATH
+    
+    # ========================================
+    # 网络配置 - 增加超时和重试
+    # ========================================
+    export WGET_OPTS="--timeout=300 --tries=5 --retry-connrefused --waitretry=10 --continue"
+    export CURL_OPTS="--connect-timeout 300 --max-time 1800 --retry 5 --retry-delay 10"
+    
+    export PIP_TIMEOUT=300
+    export PIP_RETRIES=5
+    export PIP_DEFAULT_TIMEOUT=300
+    
+    # 创建 pip 配置文件
+    mkdir -p /root/.pip
+    cat > /root/.pip/pip.conf << 'EOF'
+[global]
+timeout = 300
+retries = 5
+index-url = https://pypi.org/simple
+trusted-host = pypi.org
+EOF
+    
+    # ========================================
+    # 安装系统依赖
+    # ========================================
+    echo "Installing system dependencies..."
+    RETRY_COUNT=0
+    MAX_RETRY=5
+
+    while [ $RETRY_COUNT -lt $MAX_RETRY ]; do
+        if apt-get update && apt-get install -y \
+            wget curl git build-essential \
+            zlib1g-dev libbz2-dev libnlopt-dev liblzma-dev \
+            libcurl4-openssl-dev libssl-dev libncurses5-dev \
+            libxml2-dev libcairo2-dev libxt-dev \
+            libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
+            libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev \
+            libzip-dev libgit2-dev libhdf5-dev \
+            libgsl-dev libglpk-dev \
+            ghostscript pigz unzip ca-certificates \
+            fastqc; then
+            rm -rf /var/lib/apt/lists/*
+            break
+        else
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -eq $MAX_RETRY ]; then
+                echo "ERROR: Failed to install system dependencies after $MAX_RETRY attempts"
+                exit 1
+            fi
+            echo "Retry $RETRY_COUNT failed, waiting 30 seconds..."
+            sleep 30
+        fi
+    done
+
+    # Install the pinned STAR binary from its public release archive.
+    echo "Installing STAR 2.7.11b..."
+    cd /tmp
+    wget $WGET_OPTS \
+        "https://github.com/alexdobin/STAR/archive/refs/tags/2.7.11b.zip" \
+        -O STAR-2.7.11b.zip
+    unzip -q STAR-2.7.11b.zip
+    install -m 0755 STAR-2.7.11b/bin/Linux_x86_64_static/STAR /usr/local/bin/STAR
+    rm -rf STAR-2.7.11b STAR-2.7.11b.zip
+    
+    # ========================================
+    # 安装Miniconda
+    # ========================================
+    echo "Installing Miniconda..."
+    cd /opt
+    
+    DOWNLOAD_SUCCESS=0
+    
+    echo "Trying to download Miniconda from official repository..."
+    wget $WGET_OPTS "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O miniconda.sh && DOWNLOAD_SUCCESS=1
+    
+    if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
+        echo "Failed from anaconda.com, trying Tsinghua mirror..."
+        rm -f miniconda.sh
+        wget $WGET_OPTS "https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O miniconda.sh && DOWNLOAD_SUCCESS=1
+    fi
+    
+    if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
+        echo "Failed from Tsinghua, trying USTC mirror..."
+        rm -f miniconda.sh
+        wget $WGET_OPTS "https://mirrors.ustc.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O miniconda.sh && DOWNLOAD_SUCCESS=1
+    fi
+    
+    if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
+        echo "ERROR: Failed to download Miniconda from all mirrors"
+        exit 1
+    fi
+    
+    echo "Installing Miniconda..."
+    bash miniconda.sh -b -p /opt/conda
+    rm miniconda.sh
+    /opt/conda/bin/conda init bash
+    
+    # ========================================
+    # 配置 Conda - 增强缓存机制
+    # ========================================
+    echo "Configuring Conda channels and settings..."
+    
+    cat > /root/.condarc << 'EOF'
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+auto_activate_base: false
+always_yes: true
+show_channel_urls: true
+channel_priority: flexible
+remote_connect_timeout_secs: 300
+remote_read_timeout_secs: 600
+remote_max_retries: 5
+remote_backoff_factor: 2
+safety_checks: disabled
+report_errors: false
+use_index_cache: true
+repodata_threads: 4
+EOF
+    
+    cp /root/.condarc /opt/conda/.condarc
+    
+    export CONDA_ALWAYS_YES=true
+    export CONDA_REMOTE_CONNECT_TIMEOUT_SECS=300
+    export CONDA_REMOTE_READ_TIMEOUT_SECS=600
+    export CONDA_REMOTE_MAX_RETRIES=5
+    
+    /opt/conda/bin/conda config --set remote_connect_timeout_secs 300
+    /opt/conda/bin/conda config --set remote_read_timeout_secs 600
+    /opt/conda/bin/conda config --set remote_max_retries 5
+    /opt/conda/bin/conda config --set remote_backoff_factor 2
+    /opt/conda/bin/conda config --set use_index_cache true
+    /opt/conda/bin/conda config --set repodata_threads 4
+    
+    /opt/conda/bin/conda config --remove channels defaults 2>/dev/null || true
+    /opt/conda/bin/conda config --add channels conda-forge
+    /opt/conda/bin/conda config --add channels bioconda
+    /opt/conda/bin/conda config --set channel_priority flexible
+    
+    # ========================================
+    # 安装Snakemake
+    # ========================================
+    echo "Installing Snakemake 9.11.2 with retry logic..."
+    MAX_RETRIES=5
+    RETRY_DELAY=60
+    
+    i=1
+    while [ $i -le $MAX_RETRIES ]; do
+        echo "Attempt $i of $MAX_RETRIES to install Snakemake..."
+        if /opt/conda/bin/conda install \
+            --override-channels \
+            -c conda-forge \
+            -c bioconda \
+            -y \
+            snakemake=9.11.2; then
+            echo "Snakemake installation successful!"
+            break
+        else
+            if [ $i -eq $MAX_RETRIES ]; then
+                echo "ERROR: Failed to install Snakemake after $MAX_RETRIES attempts"
+                exit 1
+            fi
+            echo "Installation failed, waiting $RETRY_DELAY seconds before retry..."
+            sleep $RETRY_DELAY
+        fi
+        i=$((i + 1))
+    done
+    /opt/conda/bin/conda clean -afy
+    
+    # ========================================
+    # 创建Conda环境
+    # ========================================
+    echo "Creating sctest environment with retry logic..."
+    i=1
+    while [ $i -le $MAX_RETRIES ]; do
+        echo "Attempt $i of $MAX_RETRIES to create sctest environment..."
+        if /opt/conda/bin/conda env create -f /opt/scbridge-build/sctest.yaml; then
+            echo "sctest environment created successfully!"
+            break
+        else
+            /opt/conda/bin/conda env remove -n sctest 2>/dev/null || true
+            if [ $i -eq $MAX_RETRIES ]; then
+                echo "ERROR: Failed to create sctest environment after $MAX_RETRIES attempts"
+                exit 1
+            fi
+            echo "Creation failed, waiting $RETRY_DELAY seconds before retry..."
+            sleep $RETRY_DELAY
+        fi
+        i=$((i + 1))
+    done
+    
+    echo "Creating doublet_detect environment with retry logic..."
+    i=1
+    while [ $i -le $MAX_RETRIES ]; do
+        echo "Attempt $i of $MAX_RETRIES to create doublet_detect environment..."
+        if /opt/conda/bin/conda env create -f /opt/scbridge-build/doublet_detect.yaml; then
+            echo "doublet_detect environment created successfully!"
+            break
+        else
+            /opt/conda/bin/conda env remove -n doublet_detect 2>/dev/null || true
+            if [ $i -eq $MAX_RETRIES ]; then
+                echo "ERROR: Failed to create doublet_detect environment after $MAX_RETRIES attempts"
+                exit 1
+            fi
+            echo "Creation failed, waiting $RETRY_DELAY seconds before retry..."
+            sleep $RETRY_DELAY
+        fi
+        i=$((i + 1))
+    done
+    # ========================================
+    # 安装 Monocle3 到 doublet_detect 环境
+    # ========================================
+    echo "Installing Monocle3 in doublet_detect environment with retry logic..."
+    
+    MONOCLE_INSTALLED=0
+    for attempt in 1 2 3 4 5; do
+        echo "Attempt $attempt of 5 to install Monocle3..."
+        
+        if /opt/conda/bin/conda run -n doublet_detect bash -c '
+            # 创建 R 脚本来安装 Monocle3
+            cat > /tmp/install_monocle3.R << "EOF"
+            options(repos = c(CRAN = "https://cloud.r-project.org"))
+            options(timeout = 600)
+            options(download.file.method = "curl")
+            options(download.file.extra = "-L --retry 5 --retry-delay 10")
+            
+            # 安装 BiocManager
+            if (!requireNamespace("BiocManager", quietly = TRUE)) {
+                install.packages("BiocManager")
+            }
+            
+            # 设置 BiocManager 选项 - 使用版本3.20
+            BiocManager::install(version = "3.20", ask = FALSE, update = FALSE)
+            
+            # 安装 Monocle3 依赖包
+            BiocManager::install(c("BiocGenerics", "DelayedArray", "DelayedMatrixStats",
+                                  "limma", "lme4", "S4Vectors", "SingleCellExperiment",
+                                  "SummarizedExperiment", "batchelor", "HDF5Array",
+                                  "ggrastr"), ask = FALSE, update = FALSE)
+            if (!requireNamespace("remotes", quietly = TRUE)) {
+                install.packages("remotes")
+            }
+            
+            # 安装 BPCells
+            remotes::install_github("bnprks/BPCells/r", quiet = FALSE)
+            
+            # 从 GitHub 安装 Monocle3
+            remotes::install_github("cole-trapnell-lab/monocle3",
+                                    quiet = FALSE,
+                                    ref = "v1.4.26",
+                                    upgrade = "never")
+            
+            # 验证安装
+            library(monocle3)
+            cat("Monocle3 successfully installed, version:", 
+                as.character(packageVersion("monocle3")), "\n")
+EOF
+            
+            # 执行 R 脚本
+            Rscript /tmp/install_monocle3.R
+            rm -f /tmp/install_monocle3.R
+        '; then
+            echo "Monocle3 installation successful!"
+            MONOCLE_INSTALLED=1
+            break
+        else
+            if [ $attempt -eq 5 ]; then
+                echo "ERROR: Failed to install Monocle3 after 5 attempts"
+                exit 1
+            else
+                echo "Installation failed, waiting 60 seconds before retry..."
+                sleep 60
+            fi
+        fi
+    done
+    
+    # ========================================
+    # 安装 CellChat 到 doublet_detect 环境
+    # ========================================
+    echo "========================================"
+    echo "Installing CellChat in doublet_detect environment..."
+    echo "========================================"
+    
+    CELLCHAT_INSTALLED=0
+    for attempt in 1 2 3 4 5; do
+        echo "Attempt $attempt of 5 to install CellChat..."
+        
+        if /opt/conda/bin/conda run -n doublet_detect bash -c '
+            cat > /tmp/install_cellchat.R << "EOF"
+            options(repos = c(CRAN = "https://cloud.r-project.org"))
+            options(timeout = 600)
+            options(download.file.method = "curl")
+            options(download.file.extra = "-L --retry 5 --retry-delay 10")
+            
+            # 确保 BiocManager 已安装
+            if (!requireNamespace("BiocManager", quietly = TRUE)) {
+                install.packages("BiocManager")
+            }
+            
+            # 安装 CellChat 的 Bioconductor 依赖
+            cat("Installing Bioconductor dependencies for CellChat...\n")
+            BiocManager::install(c(
+                "BiocGenerics",
+                "ComplexHeatmap",
+                "BiocNeighbors"
+            ), ask = FALSE, update = FALSE)
+            
+            # 安装 CRAN 依赖包
+            cat("Installing CRAN dependencies for CellChat...\n")
+            cran_deps <- c(
+                "circlize",
+                "NMF",
+                "ggalluvial",
+                "igraph",
+                "ggplot2",
+                "patchwork",
+                "scales",
+                "sna",
+                "ggnetwork",
+                "svglite",
+                "RColorBrewer",
+                "colorspace",
+                "stringr",
+                "plyr",
+                "dplyr",
+                "reshape2",
+                "FNN",
+                "future",
+                "future.apply",
+                "pbapply",
+                "reticulate",
+                "ggpubr"
+            )
+            
+            for (pkg in cran_deps) {
+                if (!requireNamespace(pkg, quietly = TRUE)) {
+                    cat(paste("Installing", pkg, "...\n"))
+                    install.packages(pkg, quiet = TRUE)
+                }
+            }
+            
+            # Install CellChat from a versioned public source instead of copying
+            # a package library from the build host.
+            if (!requireNamespace("remotes", quietly = TRUE)) {
+                install.packages("remotes")
+            }
+            remotes::install_github("jinworks/CellChat",
+                                    ref = "v2.1.2",
+                                    upgrade = "never")
+            library(CellChat)
+            cat("CellChat successfully installed, version:", 
+                as.character(packageVersion("CellChat")), "\n")
+            
+            # 验证小鼠数据库可用
+            cat("Verifying CellChatDB.mouse availability...\n")
+            db <- CellChatDB.mouse
+            cat("CellChatDB.mouse contains", nrow(db$interaction), "interactions\n")
+            
+            cat("\n========================================\n")
+            cat("CellChat installation completed successfully!\n")
+            cat("========================================\n")
+EOF
+            
+            # 执行 R 脚本
+            Rscript /tmp/install_cellchat.R
+            rm -f /tmp/install_cellchat.R
+        '; then
+            echo "CellChat installation successful!"
+            CELLCHAT_INSTALLED=1
+            break
+        else
+            if [ $attempt -eq 5 ]; then
+                echo "ERROR: Failed to install CellChat after 5 attempts"
+                exit 1
+            else
+                echo "Installation failed, waiting 60 seconds before retry..."
+                sleep 60
+            fi
+        fi
+    done
+    
+    # 清理环境文件
+    rm -rf /opt/scbridge-build
+    /opt/conda/bin/conda clean -afy
+    
+    # ========================================
+    # 验证STAR二进制文件
+    # ========================================
+    echo "Verifying STAR installation..."
+    if [ -f /usr/local/bin/STAR ]; then
+        chmod +x /usr/local/bin/STAR
+        echo "Testing STAR..."
+        /usr/local/bin/STAR --version
+        echo "STAR verified successfully!"
+    else
+        echo "ERROR: STAR binary not found at /usr/local/bin/STAR"
+        exit 1
+    fi
+    
+    # ========================================
+    # 创建目录结构
+    # ========================================
+    mkdir -p /opt/scRNA_workflow/work_dir
+    chmod 777 /opt/scRNA_workflow/work_dir
+    echo "Creating directory structure..."
+    mkdir -p /opt/scRNA_workflow/workflow1/src/config/fastqs
+    mkdir -p /opt/scRNA_workflow/dist/results
+    
+    # 修复：创建符号链接到整个 envs 目录
+    mkdir -p /miniconda3
+    ln -sf /opt/conda/envs /miniconda3/envs
+    
+    # ========================================
+    # 设置权限
+    # ========================================
+    echo "Setting permissions..."
+    chmod 755 /opt/scRNA_workflow/run_workflow
+    chmod -R 755 /opt/scRNA_workflow/workflow1/src/workflow/scripts
+    chmod 777 /opt/scRNA_workflow/workflow1/src/config/fastqs
+    chmod 777 /opt/scRNA_workflow/dist/results
+    
+    echo "========================================"
+    echo "Container build completed successfully!"
+    echo "Installed packages:"
+    echo "  - Snakemake 9.11.2"
+    echo "  - STAR 2.7.11b"
+    echo "  - Monocle3"
+    echo "  - CellChat"
+    echo "========================================"
+
+%environment
+    export LC_ALL=C
+    export LANG=C.UTF-8
+    export PATH=/opt/conda/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+    export SNAKEMAKE_CONDA_PREFIX=/opt/conda/envs
+
+%runscript
+    #!/bin/bash
+    set -euo pipefail
+
+    if [ ! -f /opt/scRNA_workflow/run_workflow ]; then
+        echo "ERROR: /opt/scRNA_workflow/run_workflow was not found." >&2
+        echo "Bind the ScBridge project to /opt/scRNA_workflow before running the image." >&2
+        exit 1
+    fi
+
+    exec bash /opt/scRNA_workflow/run_workflow "$@"
+
+%test
+    echo "=========================================="
+    echo "Testing container components..."
+    echo "=========================================="
+    
+    # 确保 PATH 正确
+    export PATH=/opt/conda/bin:$PATH
+    
+    # 初始化并激活 conda base 环境
+    eval "$(/opt/conda/bin/conda shell.bash hook)"
+    conda activate base
+    
+    echo "Testing Snakemake..."
+    if command -v snakemake > /dev/null 2>&1; then
+        snakemake --version
+        echo "✓ Snakemake is installed"
+    else
+        echo "✗ Snakemake is missing"
+        exit 1
+    fi
+    
+    echo ""
+    echo "Testing STAR..."
+    if [ -x /usr/local/bin/STAR ]; then
+        /usr/local/bin/STAR --version
+        echo "✓ STAR is installed and executable"
+    else
+        echo "✗ STAR is missing or not executable"
+        exit 1
+    fi
+    
+    echo ""
+    echo "Testing Conda environments..."
+    conda env list
+    
+    echo ""
+    echo "Testing FastQC..."
+    if command -v fastqc > /dev/null 2>&1; then
+        fastqc --version
+        echo "✓ FastQC is installed"
+    else
+        echo "✗ FastQC is missing"
+        exit 1
+    fi
+    
+    echo ""
+    echo "Testing Monocle3 in doublet_detect environment..."
+    if /opt/conda/bin/conda run -n doublet_detect R -e "library(monocle3); cat('✓ Monocle3 version:', as.character(packageVersion('monocle3')), '\n')" 2>/dev/null; then
+        echo "✓ Monocle3 is installed in doublet_detect environment"
+    else
+        echo "✗ Monocle3 is missing from doublet_detect environment"
+        exit 1
+    fi
+    
+    echo ""
+    echo "Testing CellChat in doublet_detect environment..."
+    if /opt/conda/bin/conda run -n doublet_detect R -e "
+        library(CellChat)
+        cat('✓ CellChat version:', as.character(packageVersion('CellChat')), '\n')
+        db <- CellChatDB.mouse
+        cat('✓ CellChatDB.mouse contains', nrow(db\$interaction), 'interactions\n')
+    " 2>/dev/null; then
+        echo "✓ CellChat is installed in doublet_detect environment"
+    else
+        echo "✗ CellChat is missing from doublet_detect environment"
+        exit 1
+    fi
+    
+    echo ""
+    echo "Testing directory structure..."
+    
+    test -x /opt/scRNA_workflow/run_workflow && echo "✓ Workflow entry point found" || exit 1
+    test -f /opt/scRNA_workflow/workflow1/src/snakefile && echo "✓ Snakefile found" || exit 1
+    test -d /opt/scRNA_workflow/workflow1/src/workflow/rules && echo "✓ Rules directory found" || exit 1
+    test -d /opt/scRNA_workflow/workflow1/src/workflow/scripts && echo "✓ Scripts directory found" || exit 1
+
+    test -f /opt/scRNA_workflow/workflow1/src/config/config.yaml && echo "✓ Config file found" || exit 1
+    test -f /opt/scbridge/resources/whitelists/3M-february-2018_TRU.txt && echo "✓ 10x whitelist found" || exit 1
+
+    test -f /opt/scbridge/resources/cell_cycle/corrected_mouse_cell_cycle_genes.rds && echo "✓ Mouse cell-cycle genes found" || exit 1
+    test -f /opt/scbridge/resources/cell_cycle/human_cell_cycle_genes_2019.rds && echo "✓ Human cell-cycle genes found" || exit 1
+    test -f /opt/scbridge/resources/markers/UCB_markers_from_paper.tsv && echo "✓ Default marker table found" || exit 1
+
+    test -d /opt/scRNA_workflow/workflow1/src/config/fastqs && echo "✓ FASTQ mount point created" || exit 1
+    test -d /opt/scRNA_workflow/dist/results && echo "✓ Results mount point created" || echo "✗ Results mount point missing"
+    
+    test -L /miniconda3/envs && echo "✓ miniconda3/envs link created" || echo "✗ miniconda3/envs link missing"
+    test -d /opt/conda/envs/sctest && echo "✓ sctest environment exists" || echo "✗ sctest environment missing"
+    test -d /opt/conda/envs/doublet_detect && echo "✓ doublet_detect environment exists" || echo "✗ doublet_detect environment missing"
+    
+    echo ""
+    echo "=========================================="
+    echo "All tests completed!"
+    echo "=========================================="
