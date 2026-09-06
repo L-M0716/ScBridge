@@ -3,25 +3,34 @@
 </p>
 
 <p align="center">
-  <strong>A containerized Snakemake workflow for end-to-end single-cell RNA-seq analysis.</strong>
+  <strong>A modular, containerized Snakemake workflow for end-to-end single-cell RNA-seq analysis.</strong>
 </p>
 
 ScBridge supports FASTQ, 10x matrix, and Seurat RDS inputs, combining
 hierarchical cell-type annotation with comprehensive downstream analysis.
+
+## Workflow Overview
+
+<p align="center">
+  <img src="ScBridge_workflow.png"
+       alt="Overview of the ScBridge workflow"
+       width="95%">
+</p>
+
+ScBridge provides three entry points that converge on a unified framework for
+cell-type annotation and downstream analysis.
+
 ## Workflow Overview
 
 ![ScBridge workflow](ScBridge_workflow.png)
 ## Highlights
 
-<ul>
-  <li>Three entry points: FASTQ, 10x matrix, and Seurat RDS.</li>
-  <li>Stage-aware RDS input from filtering, normalization, clustering, or annotation.</li>
-  <li>FastQC and STARsolo processing for raw FASTQ data.</li>
-  <li>SingleR/celldex major-lineage annotation followed by marker-based subtype refinement.</li>
-  <li>Differential expression, enrichment, Monocle3, and CellChat analyses.</li>
-  <li>Reproducible dependency management through one Apptainer SIF image.</li>
-  <li>Snakemake schedules only the jobs required for the selected target and reuses complete, up-to-date outputs.</li>
-</ul>
+- **Flexible entry points:** FASTQ, 10x expression matrices, and Seurat RDS.
+- **Stage-aware execution:** start from filtering, normalization, clustering, or annotation.
+- **Raw-read processing:** FastQC and STARsolo for FASTQ input.
+- **Hierarchical annotation:** SingleR/celldex followed by marker-based subtype refinement.
+- **Integrated downstream analysis:** differential expression, enrichment, Monocle3, and CellChat.
+- **Reproducible environment:** dependencies packaged in one Apptainer SIF image.
 
 ## Project at a Glance
 
@@ -121,17 +130,19 @@ under `/opt/scRNA_workflow`.
 
 ## Inputs
 
-| Argument | Purpose |
-|---|---|
-| `-I, --input-mode` | Select `fastq`, `matrix`, or `rds` input |
-| `-F, --fastq-dir` | FASTQ directory for FASTQ mode |
-| `-D, --matrix-dir` | Directory containing one 10x matrix folder per sample |
-| `-G, --input-stage` | Stage represented by an RDS input |
-| `-P, --stage-path` | RDS file or stage directory |
-| `-C, --config` | Workflow configuration YAML |
-| `-S, --metadata` | Tab-separated sample metadata |
-| `-M, --markerlist` | Species-aware marker gene table |
-| `-R, --results` | Output directory for the analysis |
+| Argument | Applies to | Required | Purpose |
+|---|---|---:|---|
+| `-I` | All | Yes | Select the input mode |
+| `-F` | FASTQ | Yes* | FASTQ directory |
+| `-D` | Matrix | Yes* | 10x matrix directory |
+| `-G` | RDS | Yes* | Input stage |
+| `-P` | RDS | Yes* | RDS file or stage directory |
+| `-C` | All | Yes | Configuration YAML |
+| `-S` | All | Yes | Sample metadata |
+| `-M` | All | Yes | Marker gene table |
+| `-R` | All | Yes | Results directory |
+
+\* Required only for the corresponding input mode.
 
 Sample identifiers in the metadata must match the FASTQ, matrix, or RDS sample
 names used by the selected input mode.
@@ -140,7 +151,7 @@ names used by the selected input mode.
 
 Select a target with `-t, --task`:
 
-| Task | Behaviour |
+| Task | Behavior |
 |---|---|
 | `qc` | Stop after quality control |
 | `filtering` | Stop after filtering |
@@ -202,9 +213,7 @@ pipeline stages, output interpretation, and troubleshooting:
 
 * [Online documentation](https://scbridge.readthedocs.io/)
 * [Documentation source](docs/index.md)
-* [Open the local documentation](OPEN_SCBridge_DOCUMENTATION.html)
 
-## Citation And License
+## Citation
 
-Citation information will be added with the first public release. See
-[`LICENSE`](LICENSE) for the project licence.
+Citation information will be added with the first public release.
