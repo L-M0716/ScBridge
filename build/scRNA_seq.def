@@ -20,7 +20,6 @@ From: ubuntu:22.04
     workflow1/src/config/config.yaml /opt/scRNA_workflow/workflow1/src/config/config.yaml
 
     # Version-controlled environment specifications.
-    build/sctest.yaml /opt/scbridge-build/sctest.yaml
     build/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
 
     # Small runtime resources that may be redistributed with ScBridge.
@@ -211,27 +210,8 @@ EOF
     /opt/conda/bin/conda clean -afy
     
     # ========================================
-    # 创建Conda环境
+    # 创建统一的工作流Conda环境
     # ========================================
-    echo "Creating sctest environment with retry logic..."
-    i=1
-    while [ $i -le $MAX_RETRIES ]; do
-        echo "Attempt $i of $MAX_RETRIES to create sctest environment..."
-        if /opt/conda/bin/conda env create -f /opt/scbridge-build/sctest.yaml; then
-            echo "sctest environment created successfully!"
-            break
-        else
-            /opt/conda/bin/conda env remove -n sctest 2>/dev/null || true
-            if [ $i -eq $MAX_RETRIES ]; then
-                echo "ERROR: Failed to create sctest environment after $MAX_RETRIES attempts"
-                exit 1
-            fi
-            echo "Creation failed, waiting $RETRY_DELAY seconds before retry..."
-            sleep $RETRY_DELAY
-        fi
-        i=$((i + 1))
-    done
-    
     echo "Creating doublet_detect environment with retry logic..."
     i=1
     while [ $i -le $MAX_RETRIES ]; do
@@ -576,8 +556,7 @@ EOF
     test -d /opt/scRNA_workflow/dist/results && echo "✓ Results mount point created" || echo "✗ Results mount point missing"
     
     test -L /miniconda3/envs && echo "✓ miniconda3/envs link created" || echo "✗ miniconda3/envs link missing"
-    test -d /opt/conda/envs/sctest && echo "✓ sctest environment exists" || echo "✗ sctest environment missing"
-    test -d /opt/conda/envs/doublet_detect && echo "✓ doublet_detect environment exists" || echo "✗ doublet_detect environment missing"
+    test -d /opt/conda/envs/doublet_detect && echo "✓ doublet_detect environment exists" || exit 1
     
     echo ""
     echo "=========================================="
