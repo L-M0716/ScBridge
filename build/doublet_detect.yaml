@@ -1,7 +1,7 @@
 name: doublet_detect
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - nodefaults
 dependencies:
   - _libgcc_mutex=0.1
@@ -396,5 +396,8 @@ dependencies:
 
   - r-circlize
   - r-ggalluvial
+  - r-nmf
   - bioconductor-complexheatmap
   - bioconductor-org.hs.eg.db
+  - bioconductor-deseq2
+  - bioconductor-ucell
