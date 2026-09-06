@@ -13,16 +13,9 @@ hierarchical cell-type annotation with comprehensive downstream analysis.
 
 <p align="center">
   <img src="ScBridge_workflow.png"
-       alt="Overview of the ScBridge workflow"
        width="95%">
 </p>
 
-ScBridge provides three entry points that converge on a unified framework for
-cell-type annotation and downstream analysis.
-
-## Workflow Overview
-
-![ScBridge workflow](ScBridge_workflow.png)
 ## Highlights
 
 - **Flexible entry points:** FASTQ, 10x expression matrices, and Seurat RDS.
