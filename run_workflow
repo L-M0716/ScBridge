@@ -1,0 +1,792 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
+SNAKEFILE="$PROJECT_ROOT/workflow1/src/snakefile"
+DEFAULT_CONFIG="$PROJECT_ROOT/workflow1/src/config/config.yaml"
+
+INPUT_MODE=""
+FASTQ_DIR=""
+CONFIG_PATH="$DEFAULT_CONFIG"
+SAMPLES_TSV=""
+MARKERLIST=""
+RESULTS_DIR=""
+TASK="all"
+MATRIX_DIR=""
+INPUT_STAGE=""
+STAGE_PATH=""
+DRY_RUN=0
+RERUN_INCOMPLETE=0
+SNAKEMAKE_USE_CONDA=0
+FILTERED_RDS_MANIFEST=""
+STAR_INDEX=""
+
+
+usage() {
+    cat <<'EOF'
+Usage:
+  run_workflow -I fastq|matrix|rds [required arguments] [-t TASK]
+
+Input modes:
+
+  FASTQ mode
+    Start from raw FASTQ files and generate a count matrix with STARsolo.
+
+    Required arguments:
+      -I, --input-mode fastq
+      -F, --fastq-dir PATH      Directory containing input FASTQ files
+      -C, --config PATH         Workflow configuration file
+      -S, --metadata PATH       Metadata table
+      -M, --markerlist PATH     Marker gene table for cell type annotation
+      -R, --results PATH        Output directory
+
+  Matrix mode
+    Start from existing 10x-style count matrix folders.
+
+    Required arguments:
+      -I, --input-mode matrix
+      -D, --matrix-dir PATH     Directory containing one matrix folder per sample
+      -C, --config PATH         Workflow configuration file
+      -S, --metadata PATH       Metadata table
+      -M, --markerlist PATH     Marker gene table for cell type annotation
+      -R, --results PATH        Output directory
+
+  RDS mode
+    Start from an existing Seurat RDS object or RDS stage directory.
+
+    Required arguments:
+      -I, --input-mode rds
+      -G, --input-stage STAGE   Input stage: filtering, normalization, clustering, or annotation
+      -P, --stage-path PATH     Input RDS file or supported RDS directory
+      -C, --config PATH         Workflow configuration file
+      -S, --metadata PATH       Metadata table
+      -M, --markerlist PATH     Marker gene table for cell type annotation
+      -R, --results PATH        Output directory
+
+Tasks:
+  -t, --task TASK
+
+    qc              Stop after quality control
+    filtering       Stop after filtering
+    normalization   Stop after normalization
+    clustering      Stop after clustering
+    annotation      Stop after cell type annotation
+    differential    Run differential expression analysis
+    enrichment      Run functional enrichment analysis
+    trajectory      Run Monocle3 trajectory analysis
+    cellchat        Run CellChat cell-cell communication analysis
+    downstream      Run all downstream modules:
+                    differential + enrichment + trajectory + cellchat
+    all             Run from the selected input point to the final available output
+
+Additional arguments:
+      --star-index PATH     STAR index directory used in FASTQ mode
+                            Default: RESULTS_DIR/STAR_index
+  -h, --help                Show this help message
+
+Accepted aliases:
+  seurat                  -> rds
+  --samples               -> --metadata
+  filter, filtered        -> filtering
+  normalized              -> normalization
+  clustered               -> clustering
+  annotated               -> annotation
+  de                      -> differential
+  enrich                  -> enrichment
+
+Path note:
+  When using Apptainer, all paths passed to run_workflow should be container
+  paths. For example:
+    /opt/scRNA_workflow/workflow1/src/config/config.yaml
+EOF
+}
+
+fail() {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+normalize_stage_name() {
+    case "$1" in
+        filter|filtered)
+            echo "filtering"
+            ;;
+        normalized)
+            echo "normalization"
+            ;;
+        clustered)
+            echo "clustering"
+            ;;
+        annotated)
+            echo "annotation"
+            ;;
+        *)
+            echo "$1"
+            ;;
+    esac
+}
+
+normalize_task_name() {
+    case "$1" in
+        filter|filtered)
+            echo "filtering"
+            ;;
+        normalized)
+            echo "normalization"
+            ;;
+        clustered)
+            echo "clustering"
+            ;;
+        annotated)
+            echo "annotation"
+            ;;
+        de)
+            echo "differential"
+            ;;
+        enrich)
+            echo "enrichment"
+            ;;
+        *)
+            echo "$1"
+            ;;
+    esac
+}
+
+normalize_input_mode() {
+    case "$1" in
+        seurat)
+            echo "rds"
+            ;;
+        *)
+            echo "$1"
+            ;;
+    esac
+}
+
+require_path() {
+    local path="$1"
+    local label="$2"
+    if [[ -z "$path" ]]; then
+        fail "$label is required"
+    fi
+    if [[ ! -e "$path" ]]; then
+        fail "$label does not exist: $path"
+    fi
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -I|--input-mode)
+                INPUT_MODE="${2:-}"
+                shift 2
+                ;;
+            -F|--fastq-dir)
+                FASTQ_DIR="${2:-}"
+                shift 2
+                ;;
+            -C|--config)
+                CONFIG_PATH="${2:-}"
+                shift 2
+                ;;
+            -S|--samples|--metadata)
+                SAMPLES_TSV="${2:-}"
+                shift 2
+                ;;
+            -M|--markerlist)
+                MARKERLIST="${2:-}"
+                shift 2
+                ;;
+            -R|--results)
+                RESULTS_DIR="${2:-}"
+                shift 2
+                ;;
+            -D|--matrix-dir)
+                MATRIX_DIR="${2:-}"
+                shift 2
+                ;;
+            -G|--input-stage)
+                INPUT_STAGE="${2:-}"
+                shift 2
+                ;;
+            -P|--stage-path)
+                STAGE_PATH="${2:-}"
+                shift 2
+                ;;
+            --star-index)
+                STAR_INDEX="${2:-}"
+                shift 2
+                ;;
+            -t|--task)
+                TASK="${2:-}"
+                shift 2
+                ;;
+            -n|--dry-run)
+                DRY_RUN=1
+                shift
+                ;;
+            --rerun-incomplete)
+                RERUN_INCOMPLETE=1
+                shift
+                ;;
+            --use-conda)
+                SNAKEMAKE_USE_CONDA=1
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                fail "Unknown argument: $1"
+                ;;
+        esac
+    done
+}
+
+validate_and_normalize() {
+    if [[ -z "$INPUT_MODE" ]]; then
+        fail "--input-mode is required"
+    fi
+
+    INPUT_MODE="$(normalize_input_mode "$INPUT_MODE")"
+    INPUT_STAGE="$(normalize_stage_name "$INPUT_STAGE")"
+    TASK="$(normalize_task_name "$TASK")"
+
+    case "$INPUT_MODE" in
+        fastq)
+            require_path "$CONFIG_PATH" "Config YAML"
+            require_path "$SAMPLES_TSV" "Metadata table"
+            require_path "$MARKERLIST" "Marker TSV"
+            require_path "$FASTQ_DIR" "FASTQ directory"
+            if [[ -n "$MATRIX_DIR" ]]; then
+                fail "--matrix-dir is not allowed in FASTQ mode"
+            fi
+            if [[ -n "$INPUT_STAGE" || -n "$STAGE_PATH" ]]; then
+                fail "--input-stage/--stage-path is not allowed in FASTQ mode"
+            fi
+            INPUT_STAGE="fastq"
+            STAGE_PATH="$FASTQ_DIR"
+            ;;
+        matrix)
+            require_path "$CONFIG_PATH" "Config YAML"
+            require_path "$SAMPLES_TSV" "Metadata table"
+            require_path "$MARKERLIST" "Marker TSV"
+            require_path "$MATRIX_DIR" "Matrix directory"
+            if [[ -n "$FASTQ_DIR" ]]; then
+                echo "Warning: -F/--fastq-dir ignored in matrix mode" >&2
+            fi
+            if [[ -n "$INPUT_STAGE" || -n "$STAGE_PATH" ]]; then
+                fail "--input-stage/--stage-path is not allowed in matrix mode"
+            fi
+            INPUT_STAGE="matrix"
+            STAGE_PATH="$MATRIX_DIR"
+            ;;
+        rds)
+            require_path "$CONFIG_PATH" "Config YAML"
+            require_path "$SAMPLES_TSV" "Metadata table"
+            require_path "$MARKERLIST" "Marker TSV"
+            if [[ -z "$INPUT_STAGE" ]]; then
+                fail "--input-stage is required in RDS mode"
+            fi
+            if [[ -z "$STAGE_PATH" ]]; then
+                fail "--stage-path is required in RDS mode"
+            fi
+            case "$INPUT_STAGE" in
+                filtering|normalization|clustering|annotation)
+                    ;;
+                *)
+                    fail "Invalid --input-stage: $INPUT_STAGE (allowed: filtering, normalization, clustering, annotation)"
+                    ;;
+            esac
+            require_path "$STAGE_PATH" "Stage path"
+            ;;
+        *)
+            fail "Unsupported --input-mode: $INPUT_MODE (allowed: fastq, matrix, rds)"
+            ;;
+    esac
+
+    if [[ -z "$RESULTS_DIR" ]]; then
+        fail "-R/--results is required"
+    fi
+    if [[ -z "$STAR_INDEX" ]]; then
+        STAR_INDEX="$RESULTS_DIR/STAR_index"
+    fi
+
+    case "$TASK" in
+        all|qc|filtering|normalization|clustering|annotation|differential|enrichment|trajectory|cellchat|downstream)
+            ;;
+        *)
+            fail "Unsupported task: $TASK"
+            ;;
+    esac
+
+    if [[ "$TASK" == "all" ]]; then
+        return 0
+    fi
+
+    local task_index
+    local min_index
+    local -a task_order=(qc filtering normalization clustering annotation differential enrichment trajectory cellchat downstream)
+
+    task_index=-1
+    for i in "${!task_order[@]}"; do
+        if [[ "${task_order[$i]}" == "$TASK" ]]; then
+            task_index="$i"
+            break
+        fi
+    done
+
+    case "$INPUT_MODE" in
+        fastq|matrix)
+            min_index=0
+            ;;
+        rds)
+            case "$INPUT_STAGE" in
+                filtering) min_index=2 ;;
+                normalization) min_index=3 ;;
+                clustering) min_index=4 ;;
+                annotation) min_index=5 ;;
+                *) min_index=0 ;;
+            esac
+            ;;
+    esac
+
+    if [[ "$task_index" -lt "$min_index" ]]; then
+        fail "Task '$TASK' is not valid for input mode '$INPUT_MODE' and stage '$INPUT_STAGE'"
+    fi
+}
+
+map_target() {
+    if [[ "$INPUT_MODE" == "rds" && "$TASK" == "all" ]]; then
+        case "$INPUT_STAGE" in
+            filtering)
+                echo "seurat_filtering_all"
+                ;;
+            normalization)
+                echo "seurat_normalization_all"
+                ;;
+            clustering)
+                echo "seurat_clustering_all"
+                ;;
+            annotation)
+                echo "seurat_annotation_all"
+                ;;
+            *)
+                echo "Error: Task 'all' requires --input-stage filtering|normalization|clustering|annotation in RDS mode" >&2
+                exit 1
+                ;;
+        esac
+        return
+    fi
+
+    case "$TASK" in
+        qc) echo "qc_all" ;;
+        filtering) echo "filtering_all" ;;
+        normalization) echo "normalization_all" ;;
+        clustering) echo "clustering_all" ;;
+        annotation) echo "annotation_all" ;;
+        differential) echo "differential_all" ;;
+        enrichment) echo "enrichment_all" ;;
+        trajectory) echo "monocle3_all" ;;
+        cellchat) echo "cellchat_all" ;;
+        downstream) echo "downstream_all" ;;
+        all) echo "all" ;;
+        *)
+            echo "Error: Unknown task: $TASK" >&2
+            exit 1
+            ;;
+    esac
+}
+
+
+write_runtime_config() {
+    local runtime_config="$1"
+    python3 - "$CONFIG_PATH" "$runtime_config" "$FASTQ_DIR" "$SAMPLES_TSV" "$MARKERLIST" "$RESULTS_DIR" "$INPUT_MODE" "$INPUT_STAGE" "$TASK" "$MATRIX_DIR" "$STAGE_PATH" "$FILTERED_RDS_MANIFEST" "$STAR_INDEX" <<'PY'
+import sys
+from pathlib import Path
+import yaml
+
+config_path = Path(sys.argv[1])
+runtime_config = Path(sys.argv[2])
+fastq_dir = sys.argv[3]
+samples_tsv = sys.argv[4]
+markerlist = sys.argv[5]
+results_dir = sys.argv[6]
+input_mode = sys.argv[7]
+input_stage = sys.argv[8]
+task = sys.argv[9]
+matrix_dir = sys.argv[10]
+stage_path = sys.argv[11]
+filtered_rds_manifest = sys.argv[12]
+star_index = sys.argv[13]
+
+def make_abs(path):
+    if not path:
+        return ""
+    return str(Path(path).expanduser().resolve())
+
+with config_path.open("r", encoding="utf-8") as fh:
+    data = yaml.safe_load(fh) or {}
+
+if not isinstance(data, dict):
+    data = {}
+
+runtime = data.setdefault("runtime", {})
+runtime["input_mode"] = input_mode
+runtime["input_stage"] = input_stage
+runtime["tasks"] = [task]
+runtime["stage_path"] = make_abs(stage_path)
+
+input_block = data.setdefault("input", {})
+input_block["fastq_dir"] = make_abs(fastq_dir) if input_mode == "fastq" else input_block.get("fastq_dir", make_abs(fastq_dir))
+input_block["samples_table"] = make_abs(samples_tsv)
+input_block["matrix_dir"] = make_abs(matrix_dir) if input_mode == "matrix" else input_block.get("matrix_dir", "")
+
+if input_mode == "rds":
+    input_block["stage_path"] = make_abs(stage_path)
+
+if input_mode == "rds" and input_stage == "filtering" and filtered_rds_manifest:
+    manifest_path = Path(filtered_rds_manifest)
+    input_block["filtered_rds_manifest"] = make_abs(filtered_rds_manifest)
+    filtered_by_sample = {}
+    if manifest_path.exists():
+        with manifest_path.open("r", encoding="utf-8") as fh:
+            header = fh.readline().rstrip("\n").split("\t")
+            try:
+                sample_idx = header.index("sample_id")
+                path_idx = header.index("rds_path")
+            except ValueError:
+                raise SystemExit(f"Invalid filtered RDS manifest header: {manifest_path}")
+            for line in fh:
+                line = line.rstrip("\n")
+                if not line:
+                    continue
+                fields = line.split("\t")
+                filtered_by_sample[fields[sample_idx]] = fields[path_idx]
+    input_block["filtered_rds_by_sample"] = filtered_by_sample
+
+database_resources = data.setdefault("database_resources", {})
+reference_databases = database_resources.setdefault("reference_databases", {})
+reference_databases["markerlist"] = make_abs(markerlist)
+
+reference_block = data.setdefault("reference", {})
+reference_paths = reference_block.setdefault("paths", {})
+if star_index:
+    reference_paths["star_index"] = make_abs(star_index)
+
+output_block = data.setdefault("output", {})
+results_block = output_block.setdefault("results", {})
+base_dir = make_abs(results_dir)
+
+results_block["base"] = base_dir
+results_block["qc"] = f"{base_dir}/qc"
+results_block["clustered"] = f"{base_dir}/clustered"
+results_block["annotation"] = f"{base_dir}/annotation"
+results_block["downstream"] = f"{base_dir}/downstream"
+results_block["batch_correction"] = f"{base_dir}/batch_correction"
+results_block["differential"] = f"{base_dir}/differential"
+results_block["normalization"] = f"{base_dir}/normalization"
+results_block["doublets"] = f"{base_dir}/doublets"
+results_block["filtering"] = f"{base_dir}/filtering"
+results_block["feature_selection"] = f"{base_dir}/feature_selection"
+results_block["enrichment"] = f"{base_dir}/enrichment"
+results_block["monocle3"] = f"{base_dir}/monocle3"
+results_block["cellchat"] = f"{base_dir}/cellchat"
+
+runtime_config.parent.mkdir(parents=True, exist_ok=True)
+with runtime_config.open("w", encoding="utf-8") as fh:
+    yaml.safe_dump(data, fh, sort_keys=False)
+PY
+}
+
+get_sample_ids() {
+    python3 - "$SAMPLES_TSV" <<'PY'
+import csv
+import sys
+with open(sys.argv[1], encoding='utf-8') as fh:
+    rows = list(csv.DictReader(fh, delimiter='\t'))
+for row in rows:
+    sample_id = (row.get('sample_id') or '').strip()
+    if sample_id:
+        print(sample_id)
+PY
+}
+
+seurat_stage_dir() {
+    case "$1" in
+        filtering) echo "filtering" ;;
+        normalization) echo "normalization" ;;
+        clustering) echo "clustered" ;;
+        annotation) echo "annotation" ;;
+    esac
+}
+
+seurat_task_dirs() {
+    case "$1" in
+        filtering) echo "filtering" ;;
+        normalization) echo "normalization" ;;
+        clustering) echo "clustered" ;;
+        annotation) echo "annotation" ;;
+        differential) echo "differential" ;;
+        enrichment) echo "differential enrichment" ;;
+        trajectory) echo "monocle3" ;;
+        cellchat) echo "cellchat" ;;
+        downstream) echo "differential enrichment monocle3 cellchat" ;;
+        all) echo "differential enrichment monocle3 cellchat" ;;
+    esac
+}
+
+seurat_required_dirs() {
+    local -a dirs=()
+
+    case "$INPUT_MODE:$INPUT_STAGE:$TASK" in
+        rds:filtering:normalization)
+            dirs=(normalization)
+            ;;
+        rds:filtering:clustering)
+            dirs=(normalization batch_correction feature_selection clustered)
+            ;;
+        rds:filtering:annotation)
+            dirs=(normalization batch_correction feature_selection clustered annotation)
+            ;;
+        rds:filtering:all)
+            dirs=(normalization batch_correction feature_selection clustered annotation differential enrichment monocle3 cellchat)
+            ;;
+        rds:filtering:downstream)
+            dirs=(normalization batch_correction feature_selection clustered annotation differential enrichment monocle3 cellchat)
+            ;;
+        rds:normalization:clustering)
+            dirs=(batch_correction feature_selection clustered)
+            ;;
+        rds:normalization:annotation)
+            dirs=(batch_correction feature_selection clustered annotation)
+            ;;
+        rds:normalization:all)
+            dirs=(batch_correction feature_selection clustered annotation differential enrichment monocle3 cellchat)
+            ;;
+        rds:clustering:annotation)
+            dirs=(annotation)
+            ;;
+        rds:clustering:all|rds:clustering:downstream)
+            dirs=(annotation differential enrichment monocle3 cellchat)
+            ;;
+        rds:annotation:differential)
+            dirs=(differential)
+            ;;
+        rds:annotation:enrichment)
+            dirs=(differential enrichment)
+            ;;
+        rds:annotation:trajectory)
+            dirs=(monocle3)
+            ;;
+        rds:annotation:cellchat)
+            dirs=(cellchat)
+            ;;
+        rds:annotation:downstream)
+            dirs=(differential enrichment monocle3 cellchat)
+            ;;
+        *)
+            for dir in $(seurat_task_dirs "$TASK"); do
+                dirs+=("$dir")
+            done
+            ;;
+    esac
+
+    echo "${dirs[*]}"
+}
+prepare_mode_inputs() {
+    local sample_ids
+    sample_ids="$(get_sample_ids)"
+    if [[ -z "$sample_ids" ]]; then
+        fail "No samples found in $SAMPLES_TSV"
+    fi
+
+    case "$INPUT_MODE" in
+        fastq)
+            ;;
+        matrix)
+            while IFS= read -r sample_id; do
+                matrix_sample_dir="$MATRIX_DIR/$sample_id/filtered_feature_bc_matrix"
+                if [[ ! -d "$matrix_sample_dir" ]]; then
+                    fail "Matrix directory for sample '$sample_id' not found: $matrix_sample_dir"
+                fi
+                for required_file in barcodes.tsv.gz features.tsv.gz matrix.mtx.gz; do
+                    if [[ ! -f "$matrix_sample_dir/$required_file" ]]; then
+                        fail "Missing matrix file '$required_file' for sample '$sample_id' in $matrix_sample_dir"
+                    fi
+                done
+            done <<< "$sample_ids"
+            ;;
+        rds)
+            local seurat_dirs
+            seurat_dirs="$(seurat_required_dirs)"
+            mkdir -p "$RESULTS_DIR" "$RESULTS_DIR/reports" "$RESULTS_DIR/runtime"
+
+            if [[ -n "$seurat_dirs" ]]; then
+              for dir in $seurat_dirs; do
+                mkdir -p "$RESULTS_DIR/$dir"
+              done
+            fi
+            
+
+            case "$INPUT_STAGE" in
+                filtering)
+                    FILTERED_RDS_MANIFEST="$RESULTS_DIR/runtime/filtered_rds_manifest.tsv"
+                    mkdir -p "$(dirname "$FILTERED_RDS_MANIFEST")"
+                    printf 'sample_id\trds_path\n' > "$FILTERED_RDS_MANIFEST"
+
+                    if [[ -d "$STAGE_PATH" ]]; then
+                        while IFS= read -r sample_id; do
+                            src_file="$STAGE_PATH/$sample_id/seurat_filtered.rds"
+                            if [[ ! -f "$src_file" ]]; then
+                                fail "Missing filtered RDS for sample '$sample_id': $src_file"
+                            fi
+                            printf '%s\t%s\n' "$sample_id" "$src_file" >> "$FILTERED_RDS_MANIFEST"
+                        done <<< "$sample_ids"
+                    elif [[ -f "$STAGE_PATH" ]]; then
+                        sample_count=$(printf '%s\n' "$sample_ids" | wc -l)
+                        if [[ "$sample_count" -gt 1 ]]; then
+                            fail "Single filtered RDS file is only supported for one sample. For multi-sample filtering input, use a directory: <stage-path>/<sample_id>/seurat_filtered.rds"
+                        fi
+                        while IFS= read -r sample_id; do
+                            printf '%s\t%s\n' "$sample_id" "$STAGE_PATH" >> "$FILTERED_RDS_MANIFEST"
+                        done <<< "$sample_ids"
+                    else
+                        fail "--stage-path for rds filtering must be a directory or a file: $STAGE_PATH"
+                    fi
+                    ;;
+                normalization)
+                    target_path="$RESULTS_DIR/normalization/seurat_merged_normalized.rds"
+                    mkdir -p "$(dirname "$target_path")"
+                    if [[ -f "$STAGE_PATH" ]]; then
+                        cp "$STAGE_PATH" "$target_path"
+                    else
+                        printf 'placeholder\n' > "$target_path"
+                    fi
+                    ;;
+                clustering)
+                    target_path="$RESULTS_DIR/clustered/seurat_clustered.rds"
+                    mkdir -p "$(dirname "$target_path")"
+                    if [[ -f "$STAGE_PATH" ]]; then
+                        cp "$STAGE_PATH" "$target_path"
+                    else
+                        printf 'placeholder\n' > "$target_path"
+                    fi
+                    ;;
+                annotation)
+                    target_path="$RESULTS_DIR/annotation/seurat_final_annotated.rds"
+                    mkdir -p "$(dirname "$target_path")"
+                    if [[ -f "$STAGE_PATH" ]]; then
+                        cp "$STAGE_PATH" "$target_path"
+                    else
+                        printf 'placeholder\n' > "$target_path"
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+write_standardization_report() {
+    local report_path="$1"
+    local runtime_config="$2"
+    local target="$3"
+    local mapping="$4"
+    local sample_count
+    sample_count=$(python3 - "$SAMPLES_TSV" <<'PY'
+import csv
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+with path.open('r', encoding='utf-8') as fh:
+    rows = list(csv.DictReader(fh, delimiter='\t'))
+print(len(rows))
+PY
+)
+    mkdir -p "$(dirname "$report_path")"
+    cat > "$report_path" <<EOF
+Input mode: $INPUT_MODE
+Input stage: $INPUT_STAGE
+Input path: $STAGE_PATH
+Config YAML: $CONFIG_PATH
+Metadata table: $SAMPLES_TSV
+Sample count: $sample_count
+Marker TSV: $MARKERLIST
+Results dir: $RESULTS_DIR
+STAR index: $STAR_INDEX
+Requested tasks: $TASK
+Snakemake targets: $target
+Runtime config path: $runtime_config
+Mode-specific mapping: $mapping
+EOF
+}
+
+parse_args "$@"
+validate_and_normalize
+
+mkdir -p "$RESULTS_DIR"
+REPORT_DIR="$RESULTS_DIR/reports"
+RUNTIME_CONFIG="$RESULTS_DIR/runtime/runtime_config.yaml"
+REPORT_PATH="$REPORT_DIR/standardization_report.txt"
+
+MODE_MAPPING=""
+case "$INPUT_MODE" in
+    fastq)
+        MODE_MAPPING="$FASTQ_DIR"
+        ;;
+    matrix)
+        MODE_MAPPING="$RESULTS_DIR/read_data/{sample_id}/filtered_feature_bc_matrix"
+        ;;
+    rds)
+        case "$INPUT_STAGE" in
+            filtering)
+                MODE_MAPPING="$RESULTS_DIR/filtering/{sample_id}/seurat_filtered.rds"
+                ;;
+            normalization)
+                MODE_MAPPING="$RESULTS_DIR/normalization/seurat_merged_normalized.rds"
+                ;;
+            clustering)
+                MODE_MAPPING="$RESULTS_DIR/clustered/seurat_clustered.rds"
+                ;;
+            annotation)
+                MODE_MAPPING="$RESULTS_DIR/annotation/seurat_final_annotated.rds"
+                ;;
+        esac
+        ;;
+esac
+
+echo "Generating standardized workflow report..."
+prepare_mode_inputs
+write_runtime_config "$RUNTIME_CONFIG"
+write_standardization_report "$REPORT_PATH" "$RUNTIME_CONFIG" "$(map_target)" "$MODE_MAPPING"
+
+echo "Standardization report written to $REPORT_PATH"
+
+TARGET="$(map_target)"
+if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "Dry-run requested; running Snakemake with -n."
+fi
+
+echo "Snakemake target: $TARGET"
+
+export SNAKEMAKE_CONFIG="$RUNTIME_CONFIG"
+export SNAKEMAKE_SNAKEFILE="$SNAKEFILE"
+
+SNK_ARGS=(
+    --directory "$PROJECT_ROOT/workflow1/src/workflow"
+    --snakefile "$SNAKEFILE"
+    --configfile "$RUNTIME_CONFIG"
+    --cores all
+    --use-conda
+)
+if [[ "$DRY_RUN" -eq 1 ]]; then
+    SNK_ARGS+=( -n )
+fi
+if [[ "$RERUN_INCOMPLETE" -eq 1 ]]; then
+    SNK_ARGS+=( --rerun-incomplete )
+fi
+SNK_ARGS+=( "$TARGET" )
+
+exec snakemake "${SNK_ARGS[@]}"
