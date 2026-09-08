@@ -1,0 +1,211 @@
+# ========================================== #
+# scRNA-seq workflow configuration file
+# ========================================== #
+
+# === core parameters ===
+organism: "human"                #################################  mouse or  human
+platform: "10x_v3"               ################################# 10x_v3 and BD_v1
+runtime:
+  input_mode: "fastq"
+  input_stage: "fastq"
+  tasks: ["all"]
+# === fastq files ===
+input:
+  fastq_dir: "/opt/scRNA_workflow/workflow1/src/config/fastqs"        ################################# No modification needed  Directly use -B to mount
+  samples_table: "/opt/scRNA_workflow/workflow1/src/config/samples.tsv"     ################################# No modification needed irectly use -B to mount
+  matrix_dir: ""                                                            ################################# Set by run_workflow for matrix mode
+  cell_cycle_genes : "/opt/scRNA_workflow/build/resources/human_cell_cycle_genes_2019.rds" ####### This is for humans; if it is for mice, it needs to be changed to "corrected_mouse_cell_cycle_genes.rds"
+
+conda:
+  sctest: "/opt/conda/envs/sctest"  ################################# Use the container-side conda prefix
+  doublet_detect: "/opt/conda/envs/doublet_detect"  ################################# Use the container-side conda prefix
+reference:
+  paths:
+    genome_fa: "/opt/scRNA_workflow/workflow1/resource/GRCh38/GRCh38.primary_assembly.genome.fa" #This is for humans, mice need to be changed to "RCm38.primary_assembly.genome.fa", or it can also be done by mounting to import a specific fasta file
+    gtf: "/opt/scRNA_workflow/workflow1/resource/GRCh38/gencode.v49.annotation.gtf" # This is for humans, mice need to be changed to "gencode.vM23.primary_assembly.annotation.gtf", or it can also be done by mounting to import a specific gtf file
+    star_index: "/opt/scRNA_workflow/dist/results/STAR_index"   ################################# This is star index output directory.No modification needed
+    whitelists:
+      10xv3: "/opt/scRNA_workflow/workflow1/src/config/3M-february-2018_TRU.txt" ################################# No modification needed
+      bd_v1:
+        - "/opt/scRNA_workflow/workflow1/src/config/BD_CLS1_V1.txt" ################################# No modification needed
+        - "/opt/scRNA_workflow/workflow1/src/config/BD_CLS2_V1.txt" ################################# No modification needed
+        - "/opt/scRNA_workflow/workflow1/src/config/BD_CLS3_V1.txt" ################################# No modification needed
+script_paths:
+  io_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/io_scripts" # No modification needed 
+  qc_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/qc_scripts" # No modification needed 
+  normalization_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/normalization" # No modification needed
+  batch_correction_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/batch_correction" # No modification needed
+  clustering_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/clustering" # No modification needed
+  annotation_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/annotation" # No modification needed
+  differential_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/differential" # No modification needed
+  downstream_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/downstream" # No modification needed
+  doublet_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/doublet_scripts" # No modification needed
+  filtering_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/filtering_scripts" # No modification needed
+  feature_selection_scripts : "/opt/scRNA_workflow/workflow1/src/workflow/scripts/feature_selection" # No modification needed
+  enrichment_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/enrichment" # No modification needed
+  monocle3_script: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/monocle3" # No modification needed
+  cellchat_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/cellchat" # No modification needed
+
+# === Quality control parameters ===
+qc:
+  min_genes: 200 #Minimum number of genes detected per cell in quality control
+  max_genes: 5000 #Maximum number of genes detected per cell in quality control
+  min_counts: 700 #Minimum UMI counts (total transcripts) per cell in quality control
+  max_mito: 10 #Maximum allowed percentage of mitochondrial gene expression per cell in quality control
+  mito_pattern: "^MT-"             # Human or mouse mitochondrial gene prefix,Proportion of mitochondrial genes in quality control
+  doublet_method: "scDblFinder" # doublet_method,No modification needed in doublet detection
+  expected_doublet_rate: 0.06 #Expected binucleation rate in doublet detection
+  gene_filtering:
+    min_cells: 7 #The minimum number of gene expressions in filtering,normalization
+    exclude_genes: ["^Rp[sl]", "^Mt-", "Malat1"] #List of gene names that need to be removed from the expression matrix in filtering
+
+# === Standardization and Batch Correction ===
+normalization:              
+  n_variable_genes: 3000      #Number of HVG in normalization
+  vars_to_regress: ["percent.mt"] #Metadata column names that need to be removed in doublet visualization,normalization
+  seed: 42  #Random number seed in doublet_detection,normalization,batch_correction,clustering
+integration:
+  method: "seurat"               # Batch correction and clustering algorithm to be used.
+  batch_key: "batch"             # Metadata column name for batch labels  in batch correction
+  n_pcs: 30                     # Number of PCs to use for Batch Correction in batch correction,clustering
+  n_features: 3000 #Align the number of genes in different datasets in batch correction
+# === Cluster analysis parameters ===
+clustering:
+  resolution:
+    default: 0.8     #Resolution parameter of cluster granularity in clustering          
+  n_neighbors: 20    #Number of nearest neighbors used when constructing the Shared Nearest Neighbor (SNN) graph in clustering      
+  algorithm: "Leiden"           #Community detection algorithm for clustering in clustering, options include "leiden" and "louvain"
+  umap:
+    min_dist: 0.3 #Minimum effective distance between points in UMAP embedding in clustering
+    spread: 1.0   #Effective scale of midpoints in UMAP embedding in clustering
+database_resources:
+  reference_databases:
+    markerlist: "/opt/scRNA_workflow/build/resources/ImmGen/markerlist.tsv" #There is no need to modify the path in this list file; during runtime, you can mount the marker gene using -B.
+
+# === Differential Analysis Parameters ===
+differential:
+  group_by_column: "group" #Column name used for grouping in the sample table, default is "group" 
+  control_group: "Adult peripheral blood" # Control group in the sample table,Specify the value in the group_by_column column to be used as the control group
+  logfc_threshold: 0.25 #Minimum absolute log2 fold change required for candidate marker genes in annotation,differential_expression
+  min_pct: 0.1 #The detected gene is expressed in the minimum proportion of cells (expression level > 0) in either group being compared in annotation
+  min_cells_group: 20 #Minimum number of cells required for each cell type in the group in differential_expression
+  visualization:
+    top_n: 20 #Number of differentially expressed genes in differential analysis visualization
+    adj_pval_cutoff:  0.05 #Significance threshold of corrected p-value in differential analysis visualization
+    logfc_threshold: 0.5 #log2 fold change threshold in differential analysis visualization
+downstream:
+  trajectory:
+    clusters_to_use: "all" #Seurat clusters to be included in trajectory analysis, default is "all" which includes all clusters.
+    root_cluster: "" #Cluster number designated as the starting point of the trajectory
+    root_cell_type: "" #Cell type designated as the starting point of the trajectory
+    num_dim: 50 #Number of principal components retained during dimensionality reduction in trajectory analysis
+    resolution: 0.001 #Clustering resolution parameter in trajectory analysis
+    k: 20  #The k value when constructing a nearest neighbor graph in trajectory analysis
+    q_value_threshold: 0.05  #q value of trajectory-dependent genes in trajectory analysis
+  cellchat:
+    db: "all" #Specify the subset type of the CellChat database
+    min_cells: 10 #A signaling pathway is expressed by at least several cells in a certain cell population in cellchat
+    cell_type_column: "singler_labels" #Specify the column name in the Seurat object's meta.data used to label cell types in cellchat
+    pathways_of_interest: [] #Specify a list of names of signaling pathways of interest in cellchat, if empty, all pathways will be analyzed
+    top_n_pathways: 20 #Select the top_n_pathways pathways in cellchat
+    n_patterns_outgoing: 4 #Specify outgoing communication modes in cellchat
+    n_patterns_incoming: 4  #Specify incoming communication modes in cellchat
+  pathway_enrichment:
+    databases:
+      mouse_db_path: "/opt/scRNA_workflow/build/resources/kegg_cache/mmu_kegg_offline_data.rds" #Mouse KEGG offline database file path,No modification needed
+      human_db_path: "/opt/scRNA_workflow/build/resources/kegg_cache/hsa_kegg_offline_data.rds" #Human KEGG offline database file path,No modification needed
+    parameters:
+      pval_cutoff: 0.05 #As the p-value threshold in enrichment analysis
+      qval_cutoff: 0.1 #As the q-value threshold in enrichment analysis
+      logfc_threshold: 0.5 #Minimum absolute log2 fold change required for candidate genes in enrichment analysis
+      min_gene_size: 10 #Minimum number of genes required for a pathway to be considered in enrichment analysis
+      max_gene_size: 500 #Maximum number of genes allowed for a pathway in enrichment analysis
+    visualization:
+      top_n_terms: 20 #The number of pathways displayed in enrichment analysis visualization
+      plot_width: 12 #Output image width in enrichment analysis visualization plot
+      plot_height: 8 #Output image height in enrichment analysis visualization plot
+
+alignment:
+  read_length: 90 #Sequencing Read Length
+  # 10x_v3 parameter
+  soloBarcodeReadLength: 28 #Barcode read length for 10x_v3
+  soloCBlen: 16 #Cell Barcode length for 10x_v3
+  soloUMIlen: 12 #Length of UMI for 10x_v3
+  # BD Rhapsody V1 parameter
+  bd_v1:
+    soloCBposition: "0_0_0_8 0_21_0_29 0_43_0_51"   # soloCBposition parameter in STARsolo
+    soloUMIposition: "0_52_0_59"                       # soloUMIposition parameter in STARsolo
+    soloStrand: "Forward"                           #soloStrand parameter in STARsolo,Transcript strand orientation
+resources:
+  # default
+  default_threads: 8 #Related to fastqc,rule 2,rule 7
+  default_mem_gb: 32    #Related to fastqc,rule 2,rule 7        
+  
+  # Specific steps
+  alignment:
+    star:
+      threads: 18  #Number of CPU threads used by starsolo, default is 18
+      mem_gb: 128 #Allocated memory for STAR alignment, default is 128
+      index_threads: 8   #Number of CPU threads used for building the index and Default is 18
+  normalization:
+    sctransform:
+      threads: 8 #Number of CPU threads used by doublet_visualization,normalization,default is 8
+      mem_gb: 32   #Allocated memory for doublet_visualization,normalization, default is 32
+  batch_correction:
+    correction:
+      threads: 12 #Number of CPU threads used by batch_correction,default is 8
+      mem_gb: 128 #Allocated memory for batch_correction, default is 128
+  clustering:
+    pca:
+      threads: 8 #Number of CPU threads used by clustering,default is 8
+      mem_gb: 32 #Allocated memory for clustering, default is 32
+  annotation:
+    auto:
+      threads: 8 #Number of CPU threads used by annotation,default is 8
+      mem_gb: 32 #Allocated memory for annotation, default is 32
+  differential:
+    run:
+      threads: 8 #Number of CPU threads used by differential_expression,default is 8
+      mem_gb: 32 #Allocated memory for differential_expression, default is 32
+    viz:
+      threads: 4 #Number of CPU threads used by differential_expression,default is 8
+      mem_gb: 16 #Allocated memory for differential_expression, default is 32
+  downstream:
+    monocle3:
+      threads: 8 #Number of CPU threads used by monocle3,default is 8
+      mem_gb: 32 #Allocated memory for monocle3, default is 32
+    cellchat:
+      threads: 8 #Number of CPU threads used by cellchat,default is 8
+      mem_gb: 32 #Allocated memory for cellchat, default is 32  
+    pathway_enrichment:
+      threads: 4  #Number of CPU threads used for pathway_enrichment, default is 8
+      mem_gb: 16 #Allocated memory for pathway_enrichment, default is 8
+  doublet_detection:
+    threads: 8 #Number of CPU threads used for doublet detection, default is 8
+    mem_gb: 32 #Allocated memory for doublet detection, default is 32
+  filtering :
+    threads: 8 #Number of CPU threads used for filtering, default is 8
+    mem_gb: 32 #Allocated memory for filtering, default is 32
+
+# === Output directory configuration ===
+output:
+  results:
+    base: "/opt/scRNA_workflow/dist/results"  # No modification needed
+    qc: "/opt/scRNA_workflow/dist/results/qc" # No modification needed
+    clustered: "/opt/scRNA_workflow/dist/results/clustered" # No modification needed
+    annotation: "/opt/scRNA_workflow/dist/results/annotation" # No modification needed
+    downstream: "/opt/scRNA_workflow/dist/results/downstream" # No modification needed
+    batch_correction: "/opt/scRNA_workflow/dist/results/batch_correction" # No modification needed
+    differential: "/opt/scRNA_workflow/dist/results/differential" # No modification needed
+    normalization: "/opt/scRNA_workflow/dist/results/normalization" # No modification needed
+    doublets: "/opt/scRNA_workflow/dist/results/doublets" # No modification needed
+    filtering: "/opt/scRNA_workflow/dist/results/filtering" # No modification needed
+    feature_selection: "/opt/scRNA_workflow/dist/results/feature_selection" # No modification needed
+    enrichment: "/opt/scRNA_workflow/dist/results/enrichment" # No modification needed
+    monocle3: "/opt/scRNA_workflow/dist/results/monocle3" # No modification needed
+    cellchat: "/opt/scRNA_workflow/dist/results/cellchat" # No modification needed
+
+
+
+
+
