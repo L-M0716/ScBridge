@@ -1,0 +1,73 @@
+species	main_cell_type	sub_cell_type	marker_gene	evidence_type	note
+Hs	T cells		CD3D	scRNA-seq canonical	Pan-T, mitochondria-safe; Luecken & Theis 2019
+Hs	T cells		CD3E	scRNA-seq canonical	Pan-T backup; highly co-expressed with CD3D
+Hs	T cells		TRAC	scRNA-seq canonical	TCR alpha constant; exclusive to T lineage in PBMC
+Hs	T cells	CD4 T cells	CD4	scRNA-seq canonical	Helper T lineage; Zheng et al. 2017 Nat Commun
+Hs	T cells	CD4 T cells	IL7R	scRNA-seq canonical	CD127; marks CD4 naive+memory, absent on Treg (CD127lo); Hao et al. 2021 Cell
+Hs	T cells	CD8 T cells	CD8A	scRNA-seq canonical	Cytotoxic T co-receptor; Zheng et al. 2017 Nat Commun
+Hs	T cells	CD8 T cells	CD8B	scRNA-seq canonical	Highly specific co-receptor for CD8 lineage; Zheng et al. 2017 Nat Commun
+Hs	T cells	CD8 T cells	GZMK	scRNA-seq canonical	Granzyme K; CD8 effector/naive; largely absent in CD4; Hao et al. 2021 Cell
+Hs	T cells	CD8 T cells	CCL5	scRNA-seq canonical	RANTES; preferentially expressed CD8 > CD4; Zheng et al. 2017 Nat Commun
+Hs	T cells	Naive CD4 T cells	TCF7	scRNA-seq canonical	Naive/stem-like T; Gattinoni et al. 2011 Nat Med
+Hs	T cells	Naive CD4 T cells	CCR7	scRNA-seq canonical	Lymph node homing; naive and central memory T
+Hs	T cells	Naive CD4 T cells	SELL	scRNA-seq canonical	CD62L; naive T marker; Luecken & Theis 2019
+Hs	T cells	Naive CD4 T cells	LEF1	scRNA-seq canonical	Wnt target; naive T; Gattinoni et al. 2011 Nat Med
+Hs	T cells	Naive CD4 T cells	IL7R	scRNA-seq canonical	CD127; high on naive CD4, low on Treg; Hao et al. 2021 Cell
+Hs	T cells	Naive CD8 T cells	TCF7	scRNA-seq canonical	Also marks naive CD8; Gattinoni et al. 2011 Nat Med
+Hs	T cells	Naive CD8 T cells	CCR7	scRNA-seq canonical	Naive CD8 homing receptor; confirmed in UCB; Kikuta et al. 2025
+Hs	T cells	Naive CD8 T cells	SELL	scRNA-seq canonical	CD62L on naive CD8; confirmed by Kikuta et al. 2025
+Hs	T cells	Naive CD8 T cells	CD8A	scRNA-seq canonical	CD8 lineage marker; ensures separation from Naive CD4
+Hs	T cells	Naive CD8 T cells	GZMK	scRNA-seq canonical	Present even in naive CD8; absent in CD4; Hao et al. 2021 Cell
+Hs	T cells	Regulatory T cells (Treg)	FOXP3	scRNA-seq canonical	Master Treg TF; Hao et al. 2021 Cell
+Hs	T cells	Regulatory T cells (Treg)	IL2RA	scRNA-seq canonical	CD25hi defining marker; Hao et al. 2021 Cell
+Hs	T cells	Regulatory T cells (Treg)	IKZF2	scRNA-seq canonical	Helios; Treg stabilizer; Hao et al. 2021 Cell
+Hs	T cells	Regulatory T cells (Treg)	CTLA4	scRNA-seq canonical	Treg effector molecule; Hao et al. 2021 Cell
+Hs	T cells	TR1 cells	LAG3	scRNA-seq canonical	Lymphocyte activation gene 3; defining TR1 marker; Kikuta et al. 2025 Table 1 (CD49b+LAG3+)
+Hs	T cells	TR1 cells	HAVCR2	scRNA-seq canonical	TIM3; co-expressed with LAG3 on TR1 cells; Roncarolo et al. 2018 Nat Rev Immunol
+Hs	T cells	TR1 cells	ITGA2	scRNA-seq canonical	CD49b; flow cytometry TR1 definition marker; Kikuta et al. 2025 Table 1
+Hs	T cells	MAIT cells	KLRB1	scRNA-seq canonical	CD161; most specific MAIT marker; Hao et al. 2021 Cell
+Hs	T cells	MAIT cells	SLC4A10	scRNA-seq canonical	MAIT-defining gene; Hao et al. 2021 Cell
+Hs	T cells	MAIT cells	NCR3	scRNA-seq canonical	NKp30; MAIT activation; Hao et al. 2021 Cell
+Hs	B cells		CD19	scRNA-seq canonical	Pan-B; Luecken & Theis 2019
+Hs	B cells		MS4A1	scRNA-seq canonical	CD20; pan-B exclusive; Zheng et al. 2017 Nat Commun
+Hs	B cells		CD79A	scRNA-seq canonical	B cell receptor component; Hao et al. 2021 Cell
+Hs	B cells	Naive B cells	IGHD	scRNA-seq canonical	IgD+ naive B; Kikuta et al. 2025 Front Immunol
+Hs	B cells	Naive B cells	IL4R	scRNA-seq canonical	Naive B cell marker; Hao et al. 2021 Cell
+Hs	B cells	Naive B cells	FCER2	scRNA-seq canonical	CD23; naive/transitional B; Hao et al. 2021 Cell
+Hs	B cells	Memory B cells	CD27	scRNA-seq canonical	Memory B canonical; Sanz et al. 2019 Front Immunol
+Hs	B cells	Memory B cells	CD38	scRNA-seq canonical	Memory/activated B; Hao et al. 2021 Cell
+Hs	B cells	Memory B cells	IGHG1	scRNA-seq canonical	IgG class-switched memory; Hao et al. 2021 Cell
+Hs	NK cells		NCAM1	scRNA-seq canonical	CD56; pan-NK; Kikuta et al. 2025 Front Immunol
+Hs	NK cells		NKG7	scRNA-seq canonical	Most discriminative NK gene; Zheng et al. 2017 Nat Commun
+Hs	NK cells		GNLY	scRNA-seq canonical	Granulysin; NK effector; Zheng et al. 2017 Nat Commun
+Hs	NK cells		KLRD1	scRNA-seq canonical	CD94; NK-defining; Hao et al. 2021 Cell
+Hs	NK cells		KLRF1	scRNA-seq canonical	NKp80; NK-specific; Hao et al. 2021 Cell
+Hs	NK cells	Mature NK cells	FCGR3A	scRNA-seq canonical	CD16a; mature cytotoxic NK; Kikuta et al. 2025
+Hs	NK cells	Mature NK cells	FGFBP2	scRNA-seq canonical	Mature NK effector marker; Hao et al. 2021 Cell
+Hs	NK cells	Mature NK cells	PRF1	scRNA-seq canonical	Perforin; cytotoxic NK; Hao et al. 2021 Cell
+Hs	NK cells	Mature NK cells	GZMB	scRNA-seq canonical	Granzyme B; cytotoxic NK; distinct from CX3CR1 shared with monocytes; Hao et al. 2021 Cell
+Hs	Monocytes		LYZ	scRNA-seq canonical	Most specific monocyte gene; Zheng et al. 2017 Nat Commun
+Hs	Monocytes		S100A8	scRNA-seq canonical	Pan-myeloid; monocyte-high; Hao et al. 2021 Cell
+Hs	Monocytes		S100A9	scRNA-seq canonical	Pan-myeloid; monocyte-high; Hao et al. 2021 Cell
+Hs	Monocytes		CST3	scRNA-seq canonical	Pan-monocyte; Hao et al. 2021 Cell
+Hs	Monocytes		ANPEP	scRNA-seq (CD13)	CD13; monocyte/myeloid; Kikuta et al. 2025
+Hs	Monocytes	Classical monocytes	CD14	scRNA-seq canonical	Classical mono (CD14++CD16-); Kapellos et al. 2019 Front Immunol
+Hs	Monocytes	Classical monocytes	CCR2	scRNA-seq canonical	Classical mono trafficking; Kapellos et al. 2019 Front Immunol
+Hs	Monocytes	Classical monocytes	FCN1	scRNA-seq canonical	Ficolin-1; classical mono specific; Hao et al. 2021 Cell
+Hs	Monocytes	Classical monocytes	VCAN	scRNA-seq canonical	Versican; classical mono; Hao et al. 2021 Cell
+Hs	Monocytes	Non-classical monocytes	FCGR3A	scRNA-seq canonical	CD16a; non-classical/intermediate; Kapellos et al. 2019 Front Immunol
+Hs	Monocytes	Non-classical monocytes	CDKN1C	scRNA-seq canonical	p57; non-classical mono specific; Hao et al. 2021 Cell
+Hs	Monocytes	Non-classical monocytes	LST1	scRNA-seq canonical	Non-classical mono; Kapellos et al. 2019 Front Immunol
+Hs	Monocytes	Non-classical monocytes	MS4A7	scRNA-seq canonical	Non-classical monocyte marker; Hao et al. 2021 Cell
+Hs	Granulocytes		S100A12	scRNA-seq canonical	Alarmin; LDG and neutrophil high; Hao et al. 2021 Cell; Denny et al. 2010 J Immunol 184:3582
+Hs	Granulocytes		FCGR3B	scRNA-seq canonical	CD16b; granulocyte-exclusive (CD16a/FCGR3A is on NK+mono); Hao et al. 2021 Cell; Smith & Clatworthy 2010 Nat Rev Immunol
+Hs	Granulocytes		CXCR1	scRNA-seq canonical	IL-8RA; neutrophil/LDG trafficking receptor; Kolaczkowska & Kubes 2013 Nat Rev Immunol
+Hs	Granulocytes		CXCR2	scRNA-seq canonical	IL-8RB; neutrophil/LDG; Kolaczkowska & Kubes 2013 Nat Rev Immunol
+Hs	Granulocytes		CEACAM8	scRNA-seq (CD66b)	CD66b; granulocyte/LDG marker; Kikuta et al. 2025 Front Immunol
+Hs	Platelets		PF4	scRNA-seq canonical	Platelet factor 4; most specific platelet marker; Hao et al. 2021 Cell
+Hs	Platelets		PPBP	scRNA-seq canonical	Pro-platelet basic protein; platelet-exclusive; Hao et al. 2021 Cell
+Hs	Platelets		GP9	scRNA-seq canonical	Glycoprotein IX; platelet surface; Lefrançais et al. 2017 Nature
+Hs	Progenitors		CD34	scRNA-seq canonical	HSC/progenitor surface marker; Doulatov et al. 2012 Cell Stem Cell
+Hs	Progenitors		GATA2	scRNA-seq canonical	Hematopoietic TF; marks CMP/HSC; Doulatov et al. 2012 Cell Stem Cell
+Hs	Progenitors		MPO	scRNA-seq canonical	Myeloperoxidase; marks myeloid progenitors (CMP/GMP); Hao et al. 2021 Cell
+Hs	Progenitors		SPINK2	scRNA-seq canonical	Progenitor-specific; HSC/MPP marker in UCB; Pellin et al. 2019 Nat Commun
