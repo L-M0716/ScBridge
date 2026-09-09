@@ -2,7 +2,10 @@
 rule run_pathway_enrichment:
     input:
         de_results = config["output"]["results"]["differential"] + "/spreadsheets/differential_expression_results.csv",
-        final_annotated_seurat = config["output"]["results"]["annotation"] + "/seurat_final_annotated.rds"
+        final_annotated_seurat = config["output"]["results"]["annotation"] + "/seurat_final_annotated.rds",
+        kegg_database = config["downstream"]["pathway_enrichment"]["databases"][
+            {"human": "human_db_path", "mouse": "mouse_db_path"}[config["organism"]]
+        ]
     output:
         go_dir = directory(config["output"]["results"]["enrichment"] + "/GO"), 
         kegg_dir = directory(config["output"]["results"]["enrichment"] + "/KEGG"),
@@ -59,5 +62,3 @@ rule enrichment_all:
         rules.run_pathway_enrichment.output.enrichment_rds,
         rules.visualize_enrichment.output.go_viz_dir,
         rules.visualize_enrichment.output.kegg_viz_dir
-
-        
