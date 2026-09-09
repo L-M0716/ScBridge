@@ -1,5 +1,6 @@
 sample_id	batch	group	run_ids
 GSM9101188	batch1	Adult peripheral blood	SRR34479747,SRR34479748
 GSM9101189	batch2	Adult peripheral blood	SRR34479745,SRR34479746
+GSM9101190	batch3	Adult peripheral blood	SRR34479743,SRR34479744
 GSM9101191	batch4	Umbilical cord blood	SRR34479741,SRR34479742
 GSM9101192	batch5	Umbilical cord blood	SRR34479739,SRR34479740
