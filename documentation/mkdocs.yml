@@ -1,0 +1,94 @@
+site_name: ScBridge
+use_directory_urls: false
+site_dir: ../../ScBridge_Pages_Preview
+plugins:
+  - search
+site_description: A containerized Snakemake workflow for modular single-cell RNA-seq analysis.
+site_url: !ENV [SCBRIDGE_SITE_URL, "https://l-m0716.github.io/ScBridge/"]
+repo_url: https://github.com/L-M0716/ScBridge
+repo_name: L-M0716/ScBridge
+
+theme:
+  name: material
+  font: false
+  language: en
+  logo: assets/scbridge_logo.png
+  favicon: assets/scbridge_logo.png
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - content.code.copy
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+
+  - Getting Started:
+      - Installation: installation.md
+      - Quick Start: quickstart.md
+
+  - Input Data:
+      - Overview: inputs/index.md
+      - FASTQ: inputs/fastq.md
+      - 10x Matrix: inputs/matrix.md
+      - Seurat RDS: inputs/rds.md
+
+  - Workflow:
+      - Pipeline Overview: workflow/overview.md
+      - QC & Filtering: workflow/qc_filtering.md
+      - Normalization: workflow/normalization.md
+      - Batch Correction & Integration: workflow/batch_correction.md
+      - Feature Selection: workflow/feature_selection.md
+      - Clustering: workflow/clustering.md
+      - Cell Annotation: workflow/annotation.md
+
+  - Downstream Analysis:
+      - Differential Expression: downstream/differential.md
+      - Functional Enrichment: downstream/enrichment.md
+      - Trajectory Inference: downstream/monocle3.md
+      - Cell-Cell Communication: downstream/cellchat.md
+
+  - Reference:
+      - Configuration: reference/configuration.md
+      - Workflow Targets: reference/targets.md
+      - Output Reference: reference/outputs.md
+      - Command Line: reference/cli.md
+      - Troubleshooting: reference/troubleshooting.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/L-M0716/ScBridge
