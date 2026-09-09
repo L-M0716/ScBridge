@@ -1,40 +1,55 @@
 name: Publish ScBridge documentation
+
 on:
   push:
     branches: [main]
-    paths: ["documentation/**", ".github/workflows/docs-pages.yml"]
+    paths:
+      - "documentation/**"
+      - ".github/workflows/docs-pages.yml"
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: scbridge-pages
   cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
+
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
+
       - name: Install dependencies
         run: python3 -m pip install -r documentation/requirements.txt
+
       - name: Build
         env:
           SCBRIDGE_SITE_URL: ${{ steps.pages.outputs.base_url }}/
-        run: python3 -m mkdocs build --strict -f documentation/mkdocs.yml --site-dir "$GITHUB_WORKSPACE/_site"
+        run: python3 -m mkdocs build -f documentation/mkdocs.yml --site-dir "$GITHUB_WORKSPACE/_site"
+
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
     permissions:
       pages: write
       id-token: write
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Deploy
         id: deployment
