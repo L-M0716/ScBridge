@@ -14,25 +14,25 @@ From: ubuntu:22.04
 %files
     # Build from the repository root so these source paths resolve correctly.
     run_workflow /opt/scRNA_workflow/run_workflow
-    ScBridge_workflow/src/snakefile /opt/scRNA_workflow/workflow1/src/snakefile
-    ScBridge_workflow/src/workflow/rules /opt/scRNA_workflow/workflow1/src/workflow/rules
-    ScBridge_workflow/src/workflow/scripts /opt/scRNA_workflow/workflow1/src/workflow/scripts
-    ScBridge_workflow/src/config/config.yaml /opt/scRNA_workflow/workflow1/src/config/config.yaml
+    workflow1/src/snakefile /opt/scRNA_workflow/workflow1/src/snakefile
+    workflow1/src/workflow/rules /opt/scRNA_workflow/workflow1/src/workflow/rules
+    workflow1/src/workflow/scripts /opt/scRNA_workflow/workflow1/src/workflow/scripts
+    workflow1/src/config/config.yaml /opt/scRNA_workflow/workflow1/src/config/config.yaml
 
     # Version-controlled environment specifications.
     build/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
 
     # Small runtime resources that may be redistributed with ScBridge.
-    ScBridge_workflow/src/config/3M-february-2018_TRU.txt /opt/scRNA_workflow/workflow1/src/config/3M-february-2018_TRU.txt
-    ScBridge_workflow/src/config/BD_CLS1_V1.txt /opt/scRNA_workflow/workflow1/src/config/BD_CLS1_V1.txt
-    ScBridge_workflow/src/config/BD_CLS2_V1.txt /opt/scRNA_workflow/workflow1/src/config/BD_CLS2_V1.txt
-    ScBridge_workflow/src/config/BD_CLS3_V1.txt /opt/scRNA_workflow/workflow1/src/config/BD_CLS3_V1.txt
-    ScBridge_workflow/src/config/corrected_mouse_cell_cycle_genes.rds /opt/scRNA_workflow/build/resources/corrected_mouse_cell_cycle_genes.rds
-    ScBridge_workflow/src/config/human_cell_cycle_genes_2019.rds /opt/scRNA_workflow/build/resources/human_cell_cycle_genes_2019.rds
+    workflow1/src/config/3M-february-2018_TRU.txt /opt/scRNA_workflow/workflow1/src/config/3M-february-2018_TRU.txt
+    workflow1/src/config/BD_CLS1_V1.txt /opt/scRNA_workflow/workflow1/src/config/BD_CLS1_V1.txt
+    workflow1/src/config/BD_CLS2_V1.txt /opt/scRNA_workflow/workflow1/src/config/BD_CLS2_V1.txt
+    workflow1/src/config/BD_CLS3_V1.txt /opt/scRNA_workflow/workflow1/src/config/BD_CLS3_V1.txt
+    workflow1/src/config/corrected_mouse_cell_cycle_genes.rds /opt/scRNA_workflow/build/resources/corrected_mouse_cell_cycle_genes.rds
+    workflow1/src/config/human_cell_cycle_genes_2019.rds /opt/scRNA_workflow/build/resources/human_cell_cycle_genes_2019.rds
 
     # Default marker knowledge base used for hierarchical annotation. Users can
     # override this at runtime with -M/--markerlist.
-    ScBridge_workflow/src/config/UCB_markers_from_paper.tsv /opt/scRNA_workflow/build/resources/ImmGen/markerlist.tsv
+    workflow1/src/config/UCB_markers_from_paper.tsv /opt/scRNA_workflow/build/resources/ImmGen/markerlist.tsv
 
 %post
     #!/bin/bash
