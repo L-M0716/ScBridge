@@ -17,7 +17,7 @@ input:
   cell_cycle_genes : "/opt/scRNA_workflow/build/resources/human_cell_cycle_genes_2019.rds" ####### This is for humans; if it is for mice, it needs to be changed to "corrected_mouse_cell_cycle_genes.rds"
 
 conda:
-  sctest: "/opt/conda/envs/sctest"  ################################# Use the container-side conda prefix
+  sctest: "/opt/conda/envs/doublet_detect"  ################################# Use the container-side conda prefix
   doublet_detect: "/opt/conda/envs/doublet_detect"  ################################# Use the container-side conda prefix
 reference:
   paths:
