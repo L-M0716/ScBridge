@@ -42,7 +42,7 @@ From: ubuntu:22.04
     export PATH=/opt/conda/bin:$PATH
     
     # ========================================
-    # 网络配置 - 增加超时和重试
+    # Configure network timeouts and retries
     # ========================================
     export WGET_OPTS="--timeout=300 --tries=5 --retry-connrefused --waitretry=10 --continue"
     export CURL_OPTS="--connect-timeout 300 --max-time 1800 --retry 5 --retry-delay 10"
@@ -51,7 +51,7 @@ From: ubuntu:22.04
     export PIP_RETRIES=5
     export PIP_DEFAULT_TIMEOUT=300
     
-    # 创建 pip 配置文件
+    # Create the pip configuration file
     mkdir -p /root/.pip
     cat > /root/.pip/pip.conf << 'EOF'
 [global]
@@ -62,7 +62,7 @@ trusted-host = pypi.org
 EOF
     
     # ========================================
-    # 安装系统依赖
+    # Install system dependencies
     # ========================================
     echo "Installing system dependencies..."
     RETRY_COUNT=0
@@ -104,7 +104,7 @@ EOF
     rm -rf STAR-2.7.11b STAR-2.7.11b.zip
     
     # ========================================
-    # 安装Miniconda
+    # Install Miniconda
     # ========================================
     echo "Installing Miniconda..."
     cd /opt
@@ -137,7 +137,7 @@ EOF
     /opt/conda/bin/conda init bash
     
     # ========================================
-    # 配置 Conda - 增强缓存机制
+    # Configure Conda channels, caching, and retries
     # ========================================
     echo "Configuring Conda channels and settings..."
     
@@ -180,7 +180,7 @@ EOF
     /opt/conda/bin/conda config --set channel_priority flexible
     
     # ========================================
-    # 安装Snakemake
+    # Install Snakemake
     # ========================================
     echo "Installing Snakemake 9.11.2 with retry logic..."
     MAX_RETRIES=5
@@ -210,7 +210,7 @@ EOF
     /opt/conda/bin/conda clean -afy
     
     # ========================================
-    # 创建统一的工作流Conda环境
+    # Create the shared workflow Conda environment
     # ========================================
     echo "Creating doublet_detect environment with retry logic..."
     i=1
@@ -231,7 +231,7 @@ EOF
         i=$((i + 1))
     done
     # ========================================
-    # 安装 Monocle3 到 doublet_detect 环境
+    # Install Monocle3 in the doublet_detect environment
     # ========================================
     echo "Installing Monocle3 in doublet_detect environment with retry logic..."
     
@@ -240,22 +240,23 @@ EOF
         echo "Attempt $attempt of 5 to install Monocle3..."
         
         if /opt/conda/bin/conda run -n doublet_detect bash -c '
-            # 创建 R 脚本来安装 Monocle3
+            set -e
+            # Create the R installation script for Monocle3
             cat > /tmp/install_monocle3.R << "EOF"
             options(repos = c(CRAN = "https://cloud.r-project.org"))
             options(timeout = 600)
             options(download.file.method = "curl")
             options(download.file.extra = "-L --retry 5 --retry-delay 10")
             
-            # 安装 BiocManager
+            # Install BiocManager if needed
             if (!requireNamespace("BiocManager", quietly = TRUE)) {
                 install.packages("BiocManager")
             }
             
-            # 设置 BiocManager 选项 - 使用版本3.20
+            # Select Bioconductor version 3.20
             BiocManager::install(version = "3.20", ask = FALSE, update = FALSE)
             
-            # 安装 Monocle3 依赖包
+            # Install Monocle3 dependencies
             BiocManager::install(c("BiocGenerics", "DelayedArray", "DelayedMatrixStats",
                                   "limma", "lme4", "S4Vectors", "SingleCellExperiment",
                                   "SummarizedExperiment", "batchelor", "HDF5Array",
@@ -264,22 +265,22 @@ EOF
                 install.packages("remotes")
             }
             
-            # 安装 BPCells
+            # Install BPCells
             remotes::install_github("bnprks/BPCells/r", quiet = FALSE)
             
-            # 从 GitHub 安装 Monocle3
+            # Install Monocle3 from GitHub
             remotes::install_github("cole-trapnell-lab/monocle3",
                                     quiet = FALSE,
                                     ref = "v1.4.26",
                                     upgrade = "never")
             
-            # 验证安装
+            # Verify the installation
             library(monocle3)
             cat("Monocle3 successfully installed, version:", 
                 as.character(packageVersion("monocle3")), "\n")
 EOF
             
-            # 执行 R 脚本
+            # Run the R installation script
             Rscript /tmp/install_monocle3.R
             rm -f /tmp/install_monocle3.R
         '; then
@@ -298,7 +299,7 @@ EOF
     done
     
     # ========================================
-    # 安装 CellChat 到 doublet_detect 环境
+    # Install CellChat in the doublet_detect environment
     # ========================================
     echo "========================================"
     echo "Installing CellChat in doublet_detect environment..."
@@ -309,18 +310,19 @@ EOF
         echo "Attempt $attempt of 5 to install CellChat..."
         
         if /opt/conda/bin/conda run -n doublet_detect bash -c '
+            set -e
             cat > /tmp/install_cellchat.R << "EOF"
             options(repos = c(CRAN = "https://cloud.r-project.org"))
             options(timeout = 600)
             options(download.file.method = "curl")
             options(download.file.extra = "-L --retry 5 --retry-delay 10")
             
-            # 确保 BiocManager 已安装
+            # Install BiocManager if needed
             if (!requireNamespace("BiocManager", quietly = TRUE)) {
                 install.packages("BiocManager")
             }
             
-            # 安装 CellChat 的 Bioconductor 依赖
+            # Install Bioconductor dependencies for CellChat
             cat("Installing Bioconductor dependencies for CellChat...\n")
             BiocManager::install(c(
                 "BiocGenerics",
@@ -328,7 +330,7 @@ EOF
                 "BiocNeighbors"
             ), ask = FALSE, update = FALSE)
             
-            # 安装 CRAN 依赖包
+            # Install CRAN dependencies
             cat("Installing CRAN dependencies for CellChat...\n")
             cran_deps <- c(
                 "circlize",
@@ -374,7 +376,7 @@ EOF
             cat("CellChat successfully installed, version:", 
                 as.character(packageVersion("CellChat")), "\n")
             
-            # 验证小鼠数据库可用
+            # Verify that the mouse database is available
             cat("Verifying CellChatDB.mouse availability...\n")
             db <- CellChatDB.mouse
             cat("CellChatDB.mouse contains", nrow(db$interaction), "interactions\n")
@@ -384,7 +386,7 @@ EOF
             cat("========================================\n")
 EOF
             
-            # 执行 R 脚本
+            # Run the R installation script
             Rscript /tmp/install_cellchat.R
             rm -f /tmp/install_cellchat.R
         '; then
@@ -402,12 +404,12 @@ EOF
         fi
     done
     
-    # 清理环境文件
+    # Remove temporary environment specifications and clean Conda caches
     rm -rf /opt/scbridge-build
     /opt/conda/bin/conda clean -afy
     
     # ========================================
-    # 验证STAR二进制文件
+    # Verify the STAR binary
     # ========================================
     echo "Verifying STAR installation..."
     if [ -f /usr/local/bin/STAR ]; then
@@ -421,7 +423,7 @@ EOF
     fi
     
     # ========================================
-    # 创建目录结构
+    # Create the runtime directory structure
     # ========================================
     mkdir -p /opt/scRNA_workflow/work_dir
     chmod 777 /opt/scRNA_workflow/work_dir
@@ -429,14 +431,14 @@ EOF
     mkdir -p /opt/scRNA_workflow/workflow1/src/config/fastqs
     mkdir -p /opt/scRNA_workflow/dist/results
     
-    # 修复：创建符号链接到整个 envs 目录
+    # Provide the legacy path to the Conda environments directory
     mkdir -p /miniconda3
     ln -sf /opt/conda/envs /miniconda3/envs
     # Preserve the legacy environment prefix used by config.yaml.
     ln -s /opt/conda/envs/doublet_detect /opt/conda/envs/sctest
     
     # ========================================
-    # 设置权限
+    # Set file and directory permissions
     # ========================================
     echo "Setting permissions..."
     chmod 755 /opt/scRNA_workflow/run_workflow
@@ -476,10 +478,10 @@ EOF
     echo "Testing container components..."
     echo "=========================================="
     
-    # 确保 PATH 正确
+    # Set PATH for the container tests
     export PATH=/opt/conda/bin:$PATH
     
-    # 初始化并激活 conda base 环境
+    # Initialize Conda and activate the base environment
     eval "$(/opt/conda/bin/conda shell.bash hook)"
     conda activate base
     
