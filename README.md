@@ -204,7 +204,6 @@ The complete guide covers input preparation, configuration, command-line use,
 pipeline stages, output interpretation, and troubleshooting:
 
 * [Online documentation](https://l-m0716.github.io/ScBridge/)
-* [Documentation source](docs/index.md)
 
 ## Citation
 
