@@ -42,6 +42,18 @@ ScBridge requires a Linux system with Apptainer. R, Python, Conda, and workflow
 packages are provided inside the image and do not need to be installed on the
 host.
 
+Keep the following files in the repository before building:
+
+```text
+build/resources/kegg_cache/hsa_kegg_offline_data.rds
+build/resources/kegg_cache/mmu_kegg_offline_data.rds
+```
+
+The definition file copies these databases into the paths used by the default
+configuration. Enrichment requires the database for the selected organism;
+a missing file now stops dependency resolution instead of silently omitting
+KEGG. The database file is tracked as a workflow input.
+
 Build the image from the supplied definition file:
 
 ```bash
@@ -64,7 +76,8 @@ run_workflow -I fastq|matrix|rds [mode-specific input] \
 
 ```bash
 apptainer exec \
-  -B <PROJECT_DIR>:/opt/scRNA_workflow \
+  -B <HOST_INPUT_DIR>:/data:ro \
+  -B <HOST_RESULTS_DIR>:/results \
   scRNA_seq.sif \
   bash /opt/scRNA_workflow/run_workflow \
     -I fastq \
@@ -72,7 +85,7 @@ apptainer exec \
     -C <CONFIG_FILE> \
     -S <METADATA_FILE> \
     -M <MARKER_FILE> \
-    -R <RESULTS_DIR> \
+    -R /results \
     --star-index <STAR_INDEX_DIR> \
     -t <TASK>
 ```
@@ -84,7 +97,8 @@ and GTF paths defined in `config.yaml`.
 
 ```bash
 apptainer exec \
-  -B <PROJECT_DIR>:/opt/scRNA_workflow \
+  -B <HOST_INPUT_DIR>:/data:ro \
+  -B <HOST_RESULTS_DIR>:/results \
   scRNA_seq.sif \
   bash /opt/scRNA_workflow/run_workflow \
     -I matrix \
@@ -92,7 +106,7 @@ apptainer exec \
     -C <CONFIG_FILE> \
     -S <METADATA_FILE> \
     -M <MARKER_FILE> \
-    -R <RESULTS_DIR> \
+    -R /results \
     -t <TASK>
 ```
 
@@ -100,7 +114,8 @@ apptainer exec \
 
 ```bash
 apptainer exec \
-  -B <PROJECT_DIR>:/opt/scRNA_workflow \
+  -B <HOST_INPUT_DIR>:/data:ro \
+  -B <HOST_RESULTS_DIR>:/results \
   scRNA_seq.sif \
   bash /opt/scRNA_workflow/run_workflow \
     -I rds \
@@ -109,7 +124,7 @@ apptainer exec \
     -C <CONFIG_FILE> \
     -S <METADATA_FILE> \
     -M <MARKER_FILE> \
-    -R <RESULTS_DIR> \
+    -R /results \
     -t <TASK>
 ```
 
@@ -117,9 +132,21 @@ For RDS mode, `-G` accepts `filtering`, `normalization`, `clustering`, or
 `annotation`. The `-P` argument may point to a supported RDS file or a
 multi-sample stage directory.
 
-Replace each uppercase placeholder with an absolute path visible inside the
-container. With the mount shown above, files under `<PROJECT_DIR>` are available
-under `/opt/scRNA_workflow`.
+Create an empty, writable host results directory before running these commands.
+Replace `<HOST_INPUT_DIR>` with the host directory containing your input files,
+configuration, metadata, marker table, and any external reference files.
+Replace `<HOST_RESULTS_DIR>` with the host results directory. Quote host paths
+that contain spaces.
+
+All input arguments must use container-side paths under `/data`, for example
+`-C /data/config.yaml -S /data/samples.tsv -M /data/markers.tsv`.
+For an existing STAR index use its read-only path under `/data`; for a new index
+use a writable path such as `/results/STAR_index`. Set genome FASTA and GTF paths
+in the configuration to their actual paths under `/data`. Additional input
+locations can be mounted separately.
+
+Do not mount the project over `/opt/scRNA_workflow` for these examples:
+that would hide the code and resources packaged inside the image.
 
 ## Inputs
 
