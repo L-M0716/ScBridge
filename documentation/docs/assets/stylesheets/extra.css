@@ -679,3 +679,35 @@
 [data-md-color-scheme="slate"] .scbridge-hero img { filter: invert(1) hue-rotate(180deg); mix-blend-mode: screen; }
 .md-header .md-logo { mix-blend-mode: screen; }
 .md-header .md-logo img { filter: invert(1) hue-rotate(180deg); }
+/* Full-width previews for annotation, clustering and feature selection.
+   Override the previous fixed-height rules without cropping the figures. */
+.md-typeset img[src$="/examples/annotation.png"],
+.md-typeset img[src$="/examples/clustering.png"],
+.md-typeset img[src$="/examples/features.png"],
+.md-typeset figure.result-figure img[src$="/examples/annotation.png"],
+.md-typeset figure.result-figure img[src$="/examples/clustering.png"],
+.md-typeset figure.result-figure img[src$="/examples/features.png"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  aspect-ratio: auto;
+  object-fit: contain;
+  margin: 0;
+}
+
+.md-typeset p:has(> a > img[src$="/examples/annotation.png"]),
+.md-typeset p:has(> a > img[src$="/examples/clustering.png"]),
+.md-typeset p:has(> a > img[src$="/examples/features.png"]) {
+  margin: 0.75rem 0;
+  padding: 0;
+}
+
+.md-typeset a:has(> img[src$="/examples/annotation.png"]),
+.md-typeset a:has(> img[src$="/examples/clustering.png"]),
+.md-typeset a:has(> img[src$="/examples/features.png"]) {
+  display: block;
+  width: 100%;
+  line-height: 0;
+}
