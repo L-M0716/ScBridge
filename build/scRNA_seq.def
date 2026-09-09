@@ -34,6 +34,10 @@ From: ubuntu:22.04
     # override this at runtime with -M/--markerlist.
     workflow1/src/config/UCB_markers_from_paper.tsv /opt/scRNA_workflow/build/resources/ImmGen/markerlist.tsv
 
+    # Package the offline KEGG databases used by the default configuration.
+    build/resources/kegg_cache/hsa_kegg_offline_data.rds /opt/scRNA_workflow/build/resources/kegg_cache/hsa_kegg_offline_data.rds
+    build/resources/kegg_cache/mmu_kegg_offline_data.rds /opt/scRNA_workflow/build/resources/kegg_cache/mmu_kegg_offline_data.rds
+
 %post
     #!/bin/bash
     set -e
@@ -565,5 +569,7 @@ EOF
     
     echo ""
     echo "=========================================="
+    test -s /opt/scRNA_workflow/build/resources/kegg_cache/hsa_kegg_offline_data.rds || exit 1
+    test -s /opt/scRNA_workflow/build/resources/kegg_cache/mmu_kegg_offline_data.rds || exit 1
     echo "All tests completed!"
     echo "=========================================="
