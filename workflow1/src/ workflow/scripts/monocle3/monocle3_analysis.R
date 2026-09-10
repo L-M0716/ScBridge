@@ -1,4 +1,4 @@
-# scripts/downstream/monocle3_analysis.R
+# scripts/monocle3/monocle3_analysis.R
 Sys.setenv(ICU_CACHE_DATA = "TRUE")
 suppressMessages({
   library(stringi)
