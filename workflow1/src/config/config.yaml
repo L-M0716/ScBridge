@@ -38,7 +38,6 @@ script_paths:
   clustering_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/clustering" # No modification needed
   annotation_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/annotation" # No modification needed
   differential_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/differential" # No modification needed
-  downstream_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/downstream" # No modification needed
   doublet_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/doublet_scripts" # No modification needed
   filtering_scripts: "/opt/scRNA_workflow/workflow1/src/workflow/scripts/filtering_scripts" # No modification needed
   feature_selection_scripts : "/opt/scRNA_workflow/workflow1/src/workflow/scripts/feature_selection" # No modification needed
