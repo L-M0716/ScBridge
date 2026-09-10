@@ -18,6 +18,8 @@ From: ubuntu:22.04
     workflow1/src/workflow/rules /opt/scRNA_workflow/workflow1/src/workflow/rules
     workflow1/src/workflow/scripts /opt/scRNA_workflow/workflow1/src/workflow/scripts
     workflow1/src/config/config.yaml /opt/scRNA_workflow/workflow1/src/config/config.yaml
+    # Bundle the example metadata; supply dataset-specific metadata with -S.
+    workflow1/src/config/samples.tsv /opt/scRNA_workflow/workflow1/src/config/samples.tsv
 
     # Version-controlled environment specifications.
     build/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
@@ -554,6 +556,7 @@ EOF
     test -d /opt/scRNA_workflow/workflow1/src/workflow/scripts && echo "✓ Scripts directory found" || exit 1
 
     test -f /opt/scRNA_workflow/workflow1/src/config/config.yaml && echo "✓ Config file found" || exit 1
+    test -s /opt/scRNA_workflow/workflow1/src/config/samples.tsv && echo "Example sample metadata found" || exit 1
     test -f /opt/scRNA_workflow/workflow1/src/config/3M-february-2018_TRU.txt && echo "✓ 10x whitelist found" || exit 1
 
     test -f /opt/scRNA_workflow/build/resources/corrected_mouse_cell_cycle_genes.rds && echo "✓ Mouse cell-cycle genes found" || exit 1
