@@ -83,6 +83,8 @@ Tasks:
 Additional arguments:
       --star-index PATH     STAR index directory used in FASTQ mode
                             Default: RESULTS_DIR/STAR_index
+  -n, --dry-run             Show the planned Snakemake jobs without running
+                            the analysis
   -h, --help                Show this help message
 
 Accepted aliases:
