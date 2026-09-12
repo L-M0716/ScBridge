@@ -22,7 +22,7 @@ From: ubuntu:22.04
     workflow1/src/config/samples.tsv /opt/scRNA_workflow/workflow1/src/config/samples.tsv
 
     # Version-controlled environment specifications.
-    build/resources/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
+    build/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
 
     # Small runtime resources that may be redistributed with ScBridge.
     workflow1/src/config/3M-february-2018_TRU.txt /opt/scRNA_workflow/workflow1/src/config/3M-february-2018_TRU.txt
@@ -37,8 +37,8 @@ From: ubuntu:22.04
     workflow1/src/config/UCB_markers_from_paper.tsv /opt/scRNA_workflow/build/resources/ImmGen/markerlist.tsv
 
     # Package the offline KEGG databases used by the default configuration.
-    build/resources/kegg_cache/hsa_kegg_offline_data.rds /opt/scRNA_workflow/build/resources/kegg_cache/hsa_kegg_offline_data.rds
-    build/resources/kegg_cache/mmu_kegg_offline_data.rds /opt/scRNA_workflow/build/resources/kegg_cache/mmu_kegg_offline_data.rds
+    workflow1/src/config/resources/kegg_cache/hsa_kegg_offline_data.rds /opt/scRNA_workflow/build/resources/kegg_cache/hsa_kegg_offline_data.rds
+    workflow1/src/config/resources/kegg_cache/mmu_kegg_offline_data.rds /opt/scRNA_workflow/build/resources/kegg_cache/mmu_kegg_offline_data.rds
 
 %post
     #!/bin/bash
@@ -99,16 +99,6 @@ EOF
         fi
     done
 
-    # Install the pinned STAR binary from its public release archive.
-    echo "Installing STAR 2.7.11b..."
-    cd /tmp
-    wget $WGET_OPTS \
-        "https://github.com/alexdobin/STAR/archive/refs/tags/2.7.11b.zip" \
-        -O STAR-2.7.11b.zip
-    unzip -q STAR-2.7.11b.zip
-    install -m 0755 STAR-2.7.11b/bin/Linux_x86_64_static/STAR /usr/local/bin/STAR
-    rm -rf STAR-2.7.11b STAR-2.7.11b.zip
-    
     # ========================================
     # Install Miniconda
     # ========================================
@@ -186,33 +176,44 @@ EOF
     /opt/conda/bin/conda config --set channel_priority flexible
     
     # ========================================
-    # Install Snakemake
+    # Install Snakemake and STAR in a dedicated Python 3.12 environment
     # ========================================
-    echo "Installing Snakemake 9.11.2 with retry logic..."
+    echo "Installing Snakemake 9.11.2 and STAR 2.7.11b..."
     MAX_RETRIES=5
     RETRY_DELAY=60
-    
+    SNAKEMAKE_ENV=/opt/conda/envs/snakemake
+
     i=1
-    while [ $i -le $MAX_RETRIES ]; do
-        echo "Attempt $i of $MAX_RETRIES to install Snakemake..."
-        if /opt/conda/bin/conda install \
+    while [ "$i" -le "$MAX_RETRIES" ]; do
+        echo "Attempt $i of $MAX_RETRIES to install Snakemake and STAR..."
+        if /opt/conda/bin/conda create \
             --override-channels \
             -c conda-forge \
             -c bioconda \
             -y \
-            snakemake=9.11.2; then
-            echo "Snakemake installation successful!"
+            -p "$SNAKEMAKE_ENV" \
+            python=3.12 \
+            snakemake=9.11.2 \
+            star=2.7.11b; then
+            echo "Snakemake and STAR installation successful!"
             break
-        else
-            if [ $i -eq $MAX_RETRIES ]; then
-                echo "ERROR: Failed to install Snakemake after $MAX_RETRIES attempts"
-                exit 1
-            fi
-            echo "Installation failed, waiting $RETRY_DELAY seconds before retry..."
-            sleep $RETRY_DELAY
         fi
+
+        /opt/conda/bin/conda env remove \
+            -p "$SNAKEMAKE_ENV" -y 2>/dev/null || true
+
+        if [ "$i" -eq "$MAX_RETRIES" ]; then
+            echo "ERROR: Failed to install Snakemake and STAR after $MAX_RETRIES attempts"
+            exit 1
+        fi
+
+        echo "Installation failed, waiting $RETRY_DELAY seconds before retry..."
+        sleep "$RETRY_DELAY"
         i=$((i + 1))
     done
+
+    ln -sf "$SNAKEMAKE_ENV/bin/snakemake" /usr/local/bin/snakemake
+    ln -sf "$SNAKEMAKE_ENV/bin/STAR" /usr/local/bin/STAR
     /opt/conda/bin/conda clean -afy
     
     # ========================================
