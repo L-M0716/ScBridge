@@ -22,7 +22,7 @@ From: ubuntu:22.04
     workflow1/src/config/samples.tsv /opt/scRNA_workflow/workflow1/src/config/samples.tsv
 
     # Version-controlled environment specifications.
-    build/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
+    build/resources/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
 
     # Small runtime resources that may be redistributed with ScBridge.
     workflow1/src/config/3M-february-2018_TRU.txt /opt/scRNA_workflow/workflow1/src/config/3M-february-2018_TRU.txt
