@@ -22,7 +22,7 @@ From: ubuntu:22.04
     workflow1/src/config/samples.tsv /opt/scRNA_workflow/workflow1/src/config/samples.tsv
 
     # Version-controlled environment specifications.
-    build/resources/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
+    build/doublet_detect.yaml /opt/scbridge-build/doublet_detect.yaml
 
     # Small runtime resources that may be redistributed with ScBridge.
     workflow1/src/config/3M-february-2018_TRU.txt /opt/scRNA_workflow/workflow1/src/config/3M-february-2018_TRU.txt
@@ -213,7 +213,11 @@ EOF
     done
 
     ln -sf "$SNAKEMAKE_ENV/bin/snakemake" /usr/local/bin/snakemake
-    ln -sf "$SNAKEMAKE_ENV/bin/STAR" /usr/local/bin/STAR
+    cat > /usr/local/bin/STAR <<'EOF'
+#!/bin/sh
+exec /opt/conda/envs/snakemake/bin/STAR "$@"
+EOF
+    chmod 0755 /usr/local/bin/STAR
     /opt/conda/bin/conda clean -afy
     
     # ========================================
@@ -363,6 +367,18 @@ EOF
                 "reticulate",
                 "ggpubr"
             )
+
+            # CellChat 2.1.2 requires NMF >= 0.23.0, while conda-forge may
+            # provide the older NMF 0.21.0 build.
+            nmf_installed <- "NMF" %in% rownames(installed.packages())
+            if (!nmf_installed ||
+                packageVersion("NMF") < package_version("0.23.0")) {
+                install.packages("NMF", quiet = FALSE)
+            }
+            if (!requireNamespace("NMF", quietly = TRUE) ||
+                packageVersion("NMF") < package_version("0.23.0")) {
+                stop("CellChat requires NMF >= 0.23.0")
+            }
             
             for (pkg in cran_deps) {
                 if (!requireNamespace(pkg, quietly = TRUE)) {
