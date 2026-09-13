@@ -22,6 +22,13 @@ SNAKEMAKE_USE_CONDA=0
 FILTERED_RDS_MANIFEST=""
 STAR_INDEX=""
 
+# Use the Python environment bundled with Snakemake because it includes PyYAML.
+# SCBRIDGE_PYTHON may be set explicitly for development or non-container use.
+PYTHON_BIN="${SCBRIDGE_PYTHON:-/opt/conda/envs/snakemake/bin/python}"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+    PYTHON_BIN="$(command -v python3 || true)"
+fi
+
 
 usage() {
     cat <<'EOF'
@@ -107,6 +114,15 @@ EOF
 fail() {
     echo "Error: $*" >&2
     exit 1
+}
+
+check_runtime_python() {
+    if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
+        fail "Python 3 was not found. Expected /opt/conda/envs/snakemake/bin/python or python3 on PATH"
+    fi
+    if ! "$PYTHON_BIN" -c 'import yaml' >/dev/null 2>&1; then
+        fail "PyYAML is unavailable in $PYTHON_BIN. Rebuild the container or set SCBRIDGE_PYTHON to a Python environment containing PyYAML"
+    fi
 }
 
 normalize_stage_name() {
@@ -405,7 +421,7 @@ map_target() {
 
 write_runtime_config() {
     local runtime_config="$1"
-    python3 - "$CONFIG_PATH" "$runtime_config" "$FASTQ_DIR" "$SAMPLES_TSV" "$MARKERLIST" "$RESULTS_DIR" "$INPUT_MODE" "$INPUT_STAGE" "$TASK" "$MATRIX_DIR" "$STAGE_PATH" "$FILTERED_RDS_MANIFEST" "$STAR_INDEX" <<'PY'
+    "$PYTHON_BIN" - "$CONFIG_PATH" "$runtime_config" "$FASTQ_DIR" "$SAMPLES_TSV" "$MARKERLIST" "$RESULTS_DIR" "$INPUT_MODE" "$INPUT_STAGE" "$TASK" "$MATRIX_DIR" "$STAGE_PATH" "$FILTERED_RDS_MANIFEST" "$STAR_INDEX" <<'PY'
 import sys
 from pathlib import Path
 import yaml
@@ -504,7 +520,7 @@ PY
 }
 
 get_sample_ids() {
-    python3 - "$SAMPLES_TSV" <<'PY'
+    "$PYTHON_BIN" - "$SAMPLES_TSV" <<'PY'
 import csv
 import sys
 with open(sys.argv[1], encoding='utf-8') as fh:
@@ -697,7 +713,7 @@ write_standardization_report() {
     local target="$3"
     local mapping="$4"
     local sample_count
-    sample_count=$(python3 - "$SAMPLES_TSV" <<'PY'
+    sample_count=$("$PYTHON_BIN" - "$SAMPLES_TSV" <<'PY'
 import csv
 import sys
 from pathlib import Path
@@ -727,6 +743,7 @@ EOF
 
 parse_args "$@"
 validate_and_normalize
+check_runtime_python
 
 mkdir -p "$RESULTS_DIR"
 REPORT_DIR="$RESULTS_DIR/reports"
