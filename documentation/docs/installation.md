@@ -3,8 +3,9 @@
 # Installation
 
 !!! info "Installation overview"
-    ScBridge packages its analysis software in an Apptainer container.
-    Installation consists of obtaining the workflow, building the image, and verifying that it runs.
+    ScBridge is distributed as an Apptainer container. 
+    Setup involves obtaining the workflow, building the container image, and verifying that the container runs successfully.
+   
 
 ## Requirements
 
