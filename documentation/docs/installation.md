@@ -27,8 +27,8 @@ apptainer --version
 
 If the command is unavailable, install Apptainer following its
 [official installation guide](https://apptainer.org/docs/admin/latest/installation.html),
-or use the runtime provided by your computing facility. A container image does not replace
-the host container runtime.
+or use the runtime provided by your computing facility. 
+A container image does not replacethe host container runtime.
 
 ## 2. Get the workflow
 
