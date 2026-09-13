@@ -72,11 +72,6 @@ establish greater accuracy.
 
 [![Original clusters, major cell types, and refined subtypes from the supplied annotation report.](assets/examples/annotation.png)](workflow/annotation.md#inspect-the-results)
 
-**Annotation example.** The supplied results folder `5` shows the same embedding
-colored by clusters, broad labels, and refined subtypes. Some labels remain broad or
-`Unknown`; review the [annotation evidence](workflow/annotation.md#inspect-the-results)
-before using the labels downstream.
-
 ## Inspect results before continuing
 
 - **Before normalization:** Review cell and gene retention in the [filtering report](workflow/qc_filtering.md#inspect-the-results).
