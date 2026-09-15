@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="ScBridge_logo.png" alt="ScBridge - Bridging single-cell data to insights" width="750">
+  <img src="scHarbor_logo.png" alt="ScBridge - Bridging single-cell data to insights" width="750">
 </p>
 
 <p align="center">
   <strong>A modular, containerized Snakemake workflow for end-to-end single-cell RNA-seq analysis.</strong>
 </p>
 
-ScBridge supports FASTQ, 10x matrix, and Seurat RDS inputs, combining
+scHarbor supports FASTQ, 10x matrix, and Seurat RDS inputs, combining
 hierarchical cell-type annotation with comprehensive downstream analysis.
 
 ## Workflow Overview
 
 <p align="center">
-  <img src="ScBridge_workflow.png"
+  <img src="scHarbor_workflow.png"
        width="95%">
 </p>
 
@@ -38,7 +38,7 @@ hierarchical cell-type annotation with comprehensive downstream analysis.
 
 ## Installation
 
-ScBridge requires a Linux system with Apptainer. R, Python, Conda, and workflow
+scHarbor requires a Linux system with Apptainer. R, Python, Conda, and workflow
 packages are provided inside the image and do not need to be installed on the
 host.
 
@@ -90,7 +90,7 @@ apptainer exec \
     -t <TASK>
 ```
 
-If the STAR index does not exist, ScBridge can build it from the genome FASTA
+If the STAR index does not exist, scHarbor can build it from the genome FASTA
 and GTF paths defined in `config.yaml`.
 
 ### Matrix Input
@@ -167,7 +167,7 @@ names used by the selected input mode.
 
 ## Tasks
 
-Use `-t, --task` to specify the workflow target. ScBridge automatically executes
+Use `-t, --task` to specify the workflow target. scHarbor automatically executes
 all upstream stages required to produce the selected target.
 
 | Task | Execution |
